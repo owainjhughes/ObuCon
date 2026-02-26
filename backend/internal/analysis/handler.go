@@ -1,17 +1,16 @@
-package handlers
+package analysis
 
 import (
 	"net/http"
-	"obucon/internal/services"
 
 	"github.com/gin-gonic/gin"
 )
 
 type AnalysisHandler struct {
-	analysisService services.AnalysisService
+	analysisService AnalysisService
 }
 
-func NewAnalysisHandler(analysisService services.AnalysisService) *AnalysisHandler {
+func NewAnalysisHandler(analysisService AnalysisService) *AnalysisHandler {
 	return &AnalysisHandler{analysisService: analysisService}
 }
 

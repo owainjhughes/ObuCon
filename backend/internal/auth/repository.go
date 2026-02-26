@@ -1,4 +1,4 @@
-package repository
+package auth
 
 import (
 	"context"
@@ -7,8 +7,6 @@ import (
 
 	"gorm.io/gorm"
 )
-
-// Reference: https://gorm.io/docs/query.html
 
 // UserRepository defines the interface for user database operations
 type UserRepository interface {

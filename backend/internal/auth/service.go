@@ -1,11 +1,10 @@
-package services
+package auth
 
 import (
 	"context"
 	"errors"
 	"fmt"
 	"obucon/internal/models"
-	"obucon/internal/repository"
 	"time"
 
 	"github.com/golang-jwt/jwt/v5"
@@ -21,11 +20,11 @@ type AuthService interface {
 }
 
 type authService struct {
-	userRepo  repository.UserRepository
+	userRepo  UserRepository
 	jwtSecret string
 }
 
-func NewAuthService(userRepo repository.UserRepository, jwtSecret string) AuthService {
+func NewAuthService(userRepo UserRepository, jwtSecret string) AuthService {
 	return &authService{
 		userRepo:  userRepo,
 		jwtSecret: jwtSecret,
@@ -34,7 +33,6 @@ func NewAuthService(userRepo repository.UserRepository, jwtSecret string) AuthSe
 
 // Register creates a new user account
 func (s *authService) Register(ctx context.Context, email, username, password string) (*models.User, error) {
-	// Validate email
 	if email == "" {
 		return nil, errors.New("email is required")
 	}
@@ -77,7 +75,6 @@ func (s *authService) Register(ctx context.Context, email, username, password st
 }
 
 func (s *authService) Login(ctx context.Context, email, password string) (string, error) {
-	// Retrieve user
 	user, err := s.userRepo.GetByEmail(ctx, email)
 	if err != nil {
 		return "", errors.New("invalid email or password")
@@ -107,7 +104,6 @@ func (s *authService) Login(ctx context.Context, email, password string) (string
 }
 
 func (s *authService) LoginWithUserID(ctx context.Context, email, password string) (string, uint, error) {
-	// Retrieve user
 	user, err := s.userRepo.GetByEmail(ctx, email)
 	if err != nil {
 		return "", 0, errors.New("invalid email or password")
@@ -150,7 +146,6 @@ func (s *authService) ValidateToken(tokenString string) (uint, error) {
 		return 0, errors.New("invalid token claims")
 	}
 
-	// Check token expiration
 	if exp, ok := (*claims)["exp"].(float64); ok {
 		if time.Now().Unix() > int64(exp) {
 			return 0, errors.New("token expired")

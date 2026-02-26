@@ -2,12 +2,11 @@ package main
 
 import (
 	"log"
+	"obucon/internal/analysis"
+	"obucon/internal/auth"
 	"obucon/internal/config"
 	"obucon/internal/database"
-	"obucon/internal/handlers"
-	"obucon/internal/nlp/japanese"
-	"obucon/internal/repository"
-	"obucon/internal/services"
+	"obucon/internal/lang/ja"
 	"time"
 
 	"github.com/gin-contrib/cors"
@@ -26,21 +25,21 @@ func main() {
 		log.Fatalf("Failed to initialize database: %v", err)
 	}
 
-	userRepo := repository.NewUserRepository(db)
-	authService := services.NewAuthService(userRepo, cfg.JWTSecret)
-	authHandler := handlers.NewAuthHandler(authService)
+	userRepo := auth.NewUserRepository(db)
+	authService := auth.NewAuthService(userRepo, cfg.JWTSecret)
+	authHandler := auth.NewAuthHandler(authService)
 
-	tokenizer, err := japanese.NewTokenizer()
+	tokenizer, err := ja.NewTokenizer()
 	if err != nil {
 		log.Fatalf("Failed to initialize tokenizer: %v", err)
 	}
 
-	analysisService := services.NewAnalysisService(
+	analysisService := analysis.NewAnalysisService(
 		tokenizer,
 		nil,
 		nil,
 	)
-	analysisHandler := handlers.NewAnalysisHandler(analysisService)
+	analysisHandler := analysis.NewAnalysisHandler(analysisService)
 
 	// router
 	r := gin.Default()
@@ -65,7 +64,7 @@ func main() {
 
 	// Protected endpoints (require authentication)
 	protected := r.Group("/")
-	protected.Use(handlers.AuthMiddleware(authService))
+	protected.Use(auth.AuthMiddleware(authService))
 	{
 		protected.GET("/auth/me", authHandler.GetMe)
 		protected.POST("/analyze", analysisHandler.AnalyzeText)

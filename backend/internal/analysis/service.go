@@ -1,10 +1,9 @@
-package services
+package analysis
 
 import (
 	"context"
 	"fmt"
-	"obucon/internal/nlp/japanese"
-	"obucon/internal/repository"
+	"obucon/internal/lang/ja"
 )
 
 type AnalysisService interface {
@@ -12,20 +11,20 @@ type AnalysisService interface {
 }
 
 type AnalysisResult struct {
-	Tokens      []japanese.Token `json:"tokens"`
-	TotalTokens int              `json:"total_tokens"`
+	Tokens      []ja.Token `json:"tokens"`
+	TotalTokens int        `json:"total_tokens"`
 }
 
 type analysisService struct {
-	tokenizer    *japanese.Tokenizer
-	analysisRepo repository.AnalysisRepository
-	tokenRepo    repository.AnalysisTokenRepository
+	tokenizer    *ja.Tokenizer
+	analysisRepo AnalysisRepository
+	tokenRepo    AnalysisTokenRepository
 }
 
 func NewAnalysisService(
-	tokenizer *japanese.Tokenizer,
-	analysisRepo repository.AnalysisRepository,
-	tokenRepo repository.AnalysisTokenRepository,
+	tokenizer *ja.Tokenizer,
+	analysisRepo AnalysisRepository,
+	tokenRepo AnalysisTokenRepository,
 ) AnalysisService {
 	return &analysisService{
 		tokenizer:    tokenizer,
@@ -47,21 +46,6 @@ func (s *analysisService) AnalyzeText(ctx context.Context, userID uint, language
 	if err != nil {
 		return nil, fmt.Errorf("tokenization failed: %w", err)
 	}
-
-	// Create analysis record (for storage/history)
-	// TODO: Later, calculate text_hash and store analysis metadata
-	/*
-		analysis := &models.Analysis{
-			UserID:   userID,
-			Language: language,
-			TextHash: hashText(text),
-		}
-		if err := s.analysisRepo.Create(ctx, analysis); err != nil {
-			return nil, fmt.Errorf("failed to create analysis record: %w", err)
-		}
-	*/
-
-	// TODO: Store tokens in analysis_tokens table for history
 
 	return &AnalysisResult{
 		Tokens:      tokens,

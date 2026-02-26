@@ -1,4 +1,4 @@
-package repository
+package vocab
 
 import (
 	"context"
@@ -6,8 +6,6 @@ import (
 
 	"gorm.io/gorm"
 )
-
-// Reference: https://gorm.io/docs/query.html
 
 type VocabularyRepository interface {
 	Create(ctx context.Context, item *models.VocabularyItem) error

@@ -7,6 +7,7 @@ const navigation = [
 	{ name: "Home", href: "/" },
 	{ name: "Analyse", href: "/analyse" },
 	{ name: "Vocabulary", href: "/vocab" },
+	{ name: "jWiki", href: "https://ja.wikipedia.org/wiki/%E3%83%A1%E3%82%A4%E3%83%B3%E3%83%9A%E3%83%BC%E3%82%B8"}
 ]
 
 function classNames(...classes: string[]) {
@@ -77,12 +78,12 @@ export default function Navbar() {
 
 								<MenuItems transition className="absolute right-0 z-10 mt-2 w-48 origin-top-right rounded-md bg-gray-800 py-1">
 									<MenuItem>
-										<Link to="/profile" className="block px-4 py-2 text-sm text-gray-900 hover:bg-gray-700">
+										<Link to="/profile" className="block px-4 py-2 text-sm text-gray-100 hover:bg-gray-700">
 											Your profile
 										</Link>
 									</MenuItem>
 									<MenuItem>
-										<Link to="/settings" className="block px-4 py-2 text-sm text-gray-900 hover:bg-gray-700">
+										<Link to="/settings" className="block px-4 py-2 text-sm text-gray-100 hover:bg-gray-700">
 											Settings
 										</Link>
 									</MenuItem>
@@ -90,7 +91,7 @@ export default function Navbar() {
 										<button
 											type="button"
 											onClick={handleLogout}
-											className="block w-full px-4 py-2 text-left text-sm text-gray-900 hover:bg-gray-700"
+											className="block w-full px-4 py-2 text-left text-sm text-gray-100 hover:bg-gray-700"
 										>
 											Sign out
 										</button>

@@ -1,4 +1,4 @@
-package repository
+package analysis
 
 import (
 	"context"
@@ -23,7 +23,7 @@ func NewAnalysisRepository(db *gorm.DB) AnalysisRepository {
 	return &analysisRepository{db: db}
 }
 
-// Createss a new text analysis
+// Creates a new text analysis
 func (r *analysisRepository) Create(ctx context.Context, analysis *models.Analysis) error {
 	return r.db.WithContext(ctx).Create(analysis).Error
 }
@@ -34,14 +34,12 @@ func (r *analysisRepository) GetByID(ctx context.Context, id uint) (*models.Anal
 	return &analysis, err
 }
 
-// Retrieves all analyses for a user. Analysises? Analysees?
 func (r *analysisRepository) GetByUserID(ctx context.Context, userID uint) ([]models.Analysis, error) {
 	var analyses []models.Analysis
 	err := r.db.WithContext(ctx).Where("user_id = ?", userID).Order("created_at DESC").Find(&analyses).Error
 	return analyses, err
 }
 
-// Checks if text was already analyzed through it's hash
 func (r *analysisRepository) GetByTextHash(ctx context.Context, userID uint, textHash string) (*models.Analysis, error) {
 	var analysis models.Analysis
 	err := r.db.WithContext(ctx).Where("user_id = ? AND text_hash = ?", userID, textHash).First(&analysis).Error

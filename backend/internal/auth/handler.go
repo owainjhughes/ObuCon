@@ -1,9 +1,8 @@
-package handlers
+package auth
 
 import (
 	"fmt"
 	"net/http"
-	"obucon/internal/services"
 	"strings"
 
 	"github.com/gin-gonic/gin"
@@ -11,10 +10,10 @@ import (
 
 // AuthHandler handles HTTP requests for authentication
 type AuthHandler struct {
-	authService services.AuthService
+	authService AuthService
 }
 
-func NewAuthHandler(authService services.AuthService) *AuthHandler {
+func NewAuthHandler(authService AuthService) *AuthHandler {
 	return &AuthHandler{authService: authService}
 }
 
@@ -120,8 +119,8 @@ func (h *AuthHandler) GetMe(c *gin.Context) {
 	})
 }
 
-// Gin middleware that validates JWT tokens
-func AuthMiddleware(authService services.AuthService) gin.HandlerFunc {
+// AuthMiddleware validates JWT tokens
+func AuthMiddleware(authService AuthService) gin.HandlerFunc {
 	fmt.Print("AuthMiddleware initialized\n")
 	return func(c *gin.Context) {
 		tokenString := ""
@@ -144,7 +143,6 @@ func AuthMiddleware(authService services.AuthService) gin.HandlerFunc {
 			tokenString = cookieToken
 		}
 
-		// Validate token
 		userID, err := authService.ValidateToken(tokenString)
 		if err != nil {
 			c.JSON(http.StatusUnauthorized, gin.H{"error": "invalid token"})
@@ -152,7 +150,6 @@ func AuthMiddleware(authService services.AuthService) gin.HandlerFunc {
 			return
 		}
 
-		// Store userID in context
 		c.Set("userID", userID)
 		c.Next()
 	}

@@ -1,4 +1,4 @@
-package japanese
+package ja
 
 import (
 	"fmt"
@@ -39,10 +39,9 @@ func (tok *Tokenizer) Tokenize(text string) ([]Token, error) {
 			pos = t.POS()[0]
 		}
 
-		// Get base form (lemma) if available
 		lemma := t.Surface
 		if len(t.POS()) > 6 {
-			lemma = t.POS()[6] // kagome puts base form at index 6
+			lemma = t.POS()[6]
 		}
 
 		result = append(result, Token{
