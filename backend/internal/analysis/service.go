@@ -6,38 +6,26 @@ import (
 	"obucon/internal/lang/ja"
 )
 
-type AnalysisService interface {
-	AnalyzeText(ctx context.Context, userID uint, language, text string) (*AnalysisResult, error)
-}
-
 type AnalysisResult struct {
 	Tokens      []ja.Token `json:"tokens"`
 	TotalTokens int        `json:"total_tokens"`
 }
 
-type analysisService struct {
-	tokenizer    *ja.Tokenizer
-	analysisRepo AnalysisRepository
-	tokenRepo    AnalysisTokenRepository
+type Service struct {
+	tokenizer *ja.Tokenizer
 }
 
-func NewAnalysisService(
-	tokenizer *ja.Tokenizer,
-	analysisRepo AnalysisRepository,
-	tokenRepo AnalysisTokenRepository,
-) AnalysisService {
-	return &analysisService{
-		tokenizer:    tokenizer,
-		analysisRepo: analysisRepo,
-		tokenRepo:    tokenRepo,
-	}
+func NewService(tokenizer *ja.Tokenizer) *Service {
+	fmt.Print("Analysis Service NewService Function Reached\n")
+	return &Service{tokenizer: tokenizer}
 }
 
-// TODO:
-// - Dictionary lookup for word definitions
-// - Vocabulary comparison for known/unknown words
-// - Coverage percentage calculation
-func (s *analysisService) AnalyzeText(ctx context.Context, userID uint, language, text string) (*AnalysisResult, error) {
+func (s *Service) AnalyzeText(ctx context.Context, userID uint, language, text string) (*AnalysisResult, error) {
+	fmt.Print("Analysis Service AnalyzeText Function Reached\n")
+	_ = ctx
+	_ = userID
+	_ = language
+
 	if text == "" {
 		return nil, fmt.Errorf("text cannot be empty")
 	}

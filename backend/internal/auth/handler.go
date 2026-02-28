@@ -8,29 +8,26 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
-// AuthHandler handles HTTP requests for authentication
 type AuthHandler struct {
-	authService AuthService
+	authService *Service
 }
 
-func NewAuthHandler(authService AuthService) *AuthHandler {
+func NewAuthHandler(authService *Service) *AuthHandler {
+	fmt.Print("Auth NewAuthHandler Function Reached\n")
 	return &AuthHandler{authService: authService}
 }
 
-// RegisterRequest represents registration request payload
 type RegisterRequest struct {
 	Email    string `json:"email" binding:"required,email"`
 	Username string `json:"username" binding:"required,min=3,max=50"`
 	Password string `json:"password" binding:"required,min=4"`
 }
 
-// LoginRequest represents login request payload
 type LoginRequest struct {
 	Email    string `json:"email" binding:"required,email"`
 	Password string `json:"password" binding:"required"`
 }
 
-// AuthResponse represents authentication response payload
 type AuthResponse struct {
 	Token string `json:"token"`
 	Email string `json:"email"`
@@ -43,18 +40,20 @@ const (
 )
 
 func setAuthCookie(c *gin.Context, token string) {
+	fmt.Print("Auth setAuthCookie Function Reached\n")
 	c.SetSameSite(http.SameSiteLaxMode)
 	c.SetCookie(authCookieName, token, authCookieMaxAgeSeconds, "/", "", false, true)
 }
 
 func clearAuthCookie(c *gin.Context) {
+	fmt.Print("Auth clearAuthCookie Function Reached\n")
 	c.SetSameSite(http.SameSiteLaxMode)
 	c.SetCookie(authCookieName, "", -1, "/", "", false, true)
 }
 
-// Register handles POST /auth/register
 func (h *AuthHandler) Register(c *gin.Context) {
-	fmt.Print("Register endpoint hit\n")
+	fmt.Print("Auth Register Handler Function Reached\n")
+
 	var req RegisterRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid request"})
@@ -74,9 +73,9 @@ func (h *AuthHandler) Register(c *gin.Context) {
 	})
 }
 
-// Login handles POST /auth/login
 func (h *AuthHandler) Login(c *gin.Context) {
-	fmt.Print("Login endpoint hit\n")
+	fmt.Print("Auth Login Handler Function Reached\n")
+
 	var req LoginRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid request"})
@@ -98,16 +97,16 @@ func (h *AuthHandler) Login(c *gin.Context) {
 	})
 }
 
-// Logout handles POST /auth/logout
 func (h *AuthHandler) Logout(c *gin.Context) {
-	fmt.Print("Logout endpoint hit\n")
+	fmt.Print("Auth Logout Handler Function Reached\n")
+
 	clearAuthCookie(c)
 	c.JSON(http.StatusOK, gin.H{"status": "logged out"})
 }
 
-// returns current authenticated user
 func (h *AuthHandler) GetMe(c *gin.Context) {
-	fmt.Print("GetMe endpoint hit\n")
+	fmt.Print("Auth GetMe Handler Function Reached\n")
+
 	userID, exists := c.Get("userID")
 	if !exists {
 		c.JSON(http.StatusUnauthorized, gin.H{"error": "unauthorized"})
@@ -119,9 +118,9 @@ func (h *AuthHandler) GetMe(c *gin.Context) {
 	})
 }
 
-// AuthMiddleware validates JWT tokens
-func AuthMiddleware(authService AuthService) gin.HandlerFunc {
-	fmt.Print("AuthMiddleware initialized\n")
+func AuthMiddleware(authService *Service) gin.HandlerFunc {
+	fmt.Print("Auth Middleware Function Reached\n")
+
 	return func(c *gin.Context) {
 		tokenString := ""
 		authHeader := c.GetHeader("Authorization")

@@ -1,16 +1,18 @@
 package analysis
 
 import (
+	"fmt"
 	"net/http"
 
 	"github.com/gin-gonic/gin"
 )
 
 type AnalysisHandler struct {
-	analysisService AnalysisService
+	analysisService *Service
 }
 
-func NewAnalysisHandler(analysisService AnalysisService) *AnalysisHandler {
+func NewAnalysisHandler(analysisService *Service) *AnalysisHandler {
+	fmt.Print("Analysis NewAnalysisHandler Function Reached\n")
 	return &AnalysisHandler{analysisService: analysisService}
 }
 
@@ -20,6 +22,8 @@ type AnalyzeRequest struct {
 }
 
 func (h *AnalysisHandler) AnalyzeText(c *gin.Context) {
+	fmt.Print("Analysis Handler AnalyzeText Function Reached\n")
+
 	userIDInterface, exists := c.Get("userID")
 	if !exists {
 		c.JSON(http.StatusUnauthorized, gin.H{"error": "unauthorized"})

@@ -8,57 +8,48 @@ import (
 	"gorm.io/gorm"
 )
 
-// UserRepository defines the interface for user database operations
-type UserRepository interface {
-	Create(ctx context.Context, user *models.User) error
-	GetByID(ctx context.Context, id uint) (*models.User, error)
-	GetByEmail(ctx context.Context, email string) (*models.User, error)
-	GetByUsername(ctx context.Context, username string) (*models.User, error)
-	Update(ctx context.Context, user *models.User) error
-	Delete(ctx context.Context, id uint) error
-}
-
-type userRepository struct {
+type Repository struct {
 	db *gorm.DB
 }
 
-func NewUserRepository(db *gorm.DB) UserRepository {
-	return &userRepository{db: db}
+func NewRepository(db *gorm.DB) *Repository {
+	fmt.Print("Auth Repository NewRepository Function Reached\n")
+	return &Repository{db: db}
 }
 
-func (r *userRepository) Create(ctx context.Context, user *models.User) error {
+func (r *Repository) Create(ctx context.Context, user *models.User) error {
+	fmt.Print("Auth Repository Create Function Reached\n")
 	result := r.db.WithContext(ctx).Create(user)
-	fmt.Print("Creating User: ", user.Email, "\n")
 	return result.Error
 }
 
-func (r *userRepository) GetByID(ctx context.Context, id uint) (*models.User, error) {
+func (r *Repository) GetByID(ctx context.Context, id uint) (*models.User, error) {
+	fmt.Print("Auth Repository GetByID Function Reached\n")
 	var user models.User
 	err := r.db.WithContext(ctx).First(&user, id).Error
-	fmt.Print("Getting User by ID: ", id, "\n")
 	return &user, err
 }
 
-func (r *userRepository) GetByEmail(ctx context.Context, email string) (*models.User, error) {
+func (r *Repository) GetByEmail(ctx context.Context, email string) (*models.User, error) {
+	fmt.Print("Auth Repository GetByEmail Function Reached\n")
 	var user models.User
 	err := r.db.WithContext(ctx).Where("email = ?", email).First(&user).Error
-	fmt.Print("Getting User by Email: ", email, "\n")
 	return &user, err
 }
 
-func (r *userRepository) GetByUsername(ctx context.Context, username string) (*models.User, error) {
+func (r *Repository) GetByUsername(ctx context.Context, username string) (*models.User, error) {
+	fmt.Print("Auth Repository GetByUsername Function Reached\n")
 	var user models.User
 	err := r.db.WithContext(ctx).Where("username = ?", username).First(&user).Error
-	fmt.Print("Getting User by Username: ", username, "\n")
 	return &user, err
 }
 
-func (r *userRepository) Update(ctx context.Context, user *models.User) error {
-	fmt.Print("Updating User: ", user.Email, "\n")
+func (r *Repository) Update(ctx context.Context, user *models.User) error {
+	fmt.Print("Auth Repository Update Function Reached\n")
 	return r.db.WithContext(ctx).Save(user).Error
 }
 
-func (r *userRepository) Delete(ctx context.Context, id uint) error {
-	fmt.Print("Deleting User with ID: ", id, "\n")
+func (r *Repository) Delete(ctx context.Context, id uint) error {
+	fmt.Print("Auth Repository Delete Function Reached\n")
 	return r.db.WithContext(ctx).Delete(&models.User{}, id).Error
 }

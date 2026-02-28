@@ -11,28 +11,34 @@ import (
 	"golang.org/x/crypto/bcrypt"
 )
 
-// AuthService handles authentication operations
-type AuthService interface {
-	Register(ctx context.Context, email, username, password string) (*models.User, error)
-	Login(ctx context.Context, email, password string) (string, error)
-	LoginWithUserID(ctx context.Context, email, password string) (string, uint, error)
-	ValidateToken(tokenString string) (uint, error)
-}
-
-type authService struct {
-	userRepo  UserRepository
+type Service struct {
+	userRepo  *Repository
 	jwtSecret string
 }
 
-func NewAuthService(userRepo UserRepository, jwtSecret string) AuthService {
-	return &authService{
+func NewService(userRepo *Repository, jwtSecret string) *Service {
+	fmt.Print("Auth NewService Function Reached\n")
+	return &Service{
 		userRepo:  userRepo,
 		jwtSecret: jwtSecret,
 	}
 }
 
-// Register creates a new user account
-func (s *authService) Register(ctx context.Context, email, username, password string) (*models.User, error) {
+func (s *Service) generateToken(userID uint, email string) (string, error) {
+	fmt.Print("Auth generateToken Function Reached\n")
+
+	token := jwt.NewWithClaims(jwt.SigningMethodHS256, jwt.MapClaims{
+		"user_id": userID,
+		"email":   email,
+		"exp":     time.Now().Add(24 * time.Hour).Unix(),
+	})
+
+	return token.SignedString([]byte(s.jwtSecret))
+}
+
+func (s *Service) Register(ctx context.Context, email, username, password string) (*models.User, error) {
+	fmt.Print("Auth Register Function Reached\n")
+
 	if email == "" {
 		return nil, errors.New("email is required")
 	}
@@ -70,46 +76,14 @@ func (s *authService) Register(ctx context.Context, email, username, password st
 		return nil, fmt.Errorf("failed to create user: %w", err)
 	}
 
-	fmt.Print("User Registered: ", user.Email, "\n")
 	return user, nil
 }
 
-func (s *authService) Login(ctx context.Context, email, password string) (string, error) {
+func (s *Service) LoginWithUserID(ctx context.Context, email, password string) (string, uint, error) {
+	fmt.Print("Auth LoginWithUserID Function Reached\n")
+
 	user, err := s.userRepo.GetByEmail(ctx, email)
-	if err != nil {
-		return "", errors.New("invalid email or password")
-	}
-
-	if user == nil {
-		return "", errors.New("invalid email or password")
-	}
-
-	if err := bcrypt.CompareHashAndPassword([]byte(user.PasswordHash), []byte(password)); err != nil {
-		return "", errors.New("invalid email or password")
-	}
-
-	token := jwt.NewWithClaims(jwt.SigningMethodHS256, jwt.MapClaims{
-		"user_id": user.ID,
-		"email":   user.Email,
-		"exp":     time.Now().Add(24 * time.Hour).Unix(),
-	})
-
-	tokenString, err := token.SignedString([]byte(s.jwtSecret))
-	if err != nil {
-		return "", fmt.Errorf("failed to sign token: %w", err)
-	}
-
-	fmt.Print("User Logged In: ", user.Email, "\n")
-	return tokenString, nil
-}
-
-func (s *authService) LoginWithUserID(ctx context.Context, email, password string) (string, uint, error) {
-	user, err := s.userRepo.GetByEmail(ctx, email)
-	if err != nil {
-		return "", 0, errors.New("invalid email or password")
-	}
-
-	if user == nil {
+	if err != nil || user == nil {
 		return "", 0, errors.New("invalid email or password")
 	}
 
@@ -117,22 +91,17 @@ func (s *authService) LoginWithUserID(ctx context.Context, email, password strin
 		return "", 0, errors.New("invalid email or password")
 	}
 
-	token := jwt.NewWithClaims(jwt.SigningMethodHS256, jwt.MapClaims{
-		"user_id": user.ID,
-		"email":   user.Email,
-		"exp":     time.Now().Add(24 * time.Hour).Unix(),
-	})
-
-	tokenString, err := token.SignedString([]byte(s.jwtSecret))
+	tokenString, err := s.generateToken(user.ID, user.Email)
 	if err != nil {
 		return "", 0, fmt.Errorf("failed to sign token: %w", err)
 	}
 
-	fmt.Print("User Logged In: ", user.Email, "\n")
 	return tokenString, user.ID, nil
 }
 
-func (s *authService) ValidateToken(tokenString string) (uint, error) {
+func (s *Service) ValidateToken(tokenString string) (uint, error) {
+	fmt.Print("Auth ValidateToken Function Reached\n")
+
 	token, err := jwt.ParseWithClaims(tokenString, &jwt.MapClaims{}, func(token *jwt.Token) (interface{}, error) {
 		return []byte(s.jwtSecret), nil
 	})
@@ -157,6 +126,5 @@ func (s *authService) ValidateToken(tokenString string) (uint, error) {
 		return 0, errors.New("invalid user_id in token")
 	}
 
-	fmt.Print("Token Validated for User ID: ", uint(userID), "\n")
 	return uint(userID), nil
 }
