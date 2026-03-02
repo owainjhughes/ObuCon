@@ -5,7 +5,7 @@
 DROP TABLE IF EXISTS japanese_dictionary CASCADE;
 DROP TABLE IF EXISTS analysis_tokens CASCADE;
 DROP TABLE IF EXISTS analyses CASCADE;
-DROP TABLE IF EXISTS vocabulary_items CASCADE;
+DROP TABLE IF EXISTS known_words CASCADE;
 DROP TABLE IF EXISTS users CASCADE;
 
 DROP TRIGGER IF EXISTS update_users_updated_at ON users;

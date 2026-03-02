@@ -2,6 +2,8 @@ package ja
 
 import (
 	"fmt"
+	"unicode"
+	"unicode/utf8"
 
 	"github.com/ikawaha/kagome-dict/ipa"
 	"github.com/ikawaha/kagome/v2/tokenizer"
@@ -15,6 +17,20 @@ type Token struct {
 
 type Tokenizer struct {
 	t *tokenizer.Tokenizer
+}
+
+func isNumericToken(text string) bool {
+	if text == "" {
+		return false
+	}
+
+	for _, r := range text {
+		if !unicode.IsDigit(r) {
+			return false
+		}
+	}
+
+	return true
 }
 
 func NewTokenizer() (*Tokenizer, error) {
@@ -44,11 +60,27 @@ func (tok *Tokenizer) Tokenize(text string) ([]Token, error) {
 			lemma = t.POS()[6]
 		}
 
-		result = append(result, Token{
-			Surface:      t.Surface,
-			Lemma:        lemma,
-			PartOfSpeech: pos,
-		})
+		// skip punctuation and special BOS/EOS markers
+		if t.Surface == "BOS" || t.Surface == "EOS" {
+			continue
+		}
+
+		r, _ := utf8.DecodeRuneInString(t.Surface)
+		if unicode.IsPunct(r) {
+			continue
+		}
+
+		if isNumericToken(t.Surface) {
+			continue
+		}
+
+		if t.Surface != "" {
+			result = append(result, Token{
+				Surface:      t.Surface,
+				Lemma:        lemma,
+				PartOfSpeech: pos,
+			})
+		}
 	}
 
 	return result, nil

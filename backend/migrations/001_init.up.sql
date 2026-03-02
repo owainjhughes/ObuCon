@@ -9,15 +9,16 @@ CREATE TABLE users (
     updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
 );
 
-CREATE TABLE vocabulary_items (
+CREATE TABLE known_words (
     id SERIAL PRIMARY KEY,
     user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
     language VARCHAR(10) NOT NULL,  -- 'ja', 'de', 'ko', etc.
     lemma TEXT NOT NULL,
     grade_level INTEGER,
-    status VARCHAR(20) DEFAULT 'known',
+    status VARCHAR(20) DEFAULT 'unknown',
     metadata JSONB,  -- Flexible language-specific data
-    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+    UNIQUE(user_id, language, lemma)
 );
 
 CREATE TABLE analyses (
@@ -51,9 +52,11 @@ CREATE TABLE japanese_dictionary (
 CREATE INDEX idx_users_email ON users(email);
 CREATE INDEX idx_users_username ON users(username);
 
-CREATE INDEX idx_vocab_user_language ON vocabulary_items(user_id, language);
-CREATE INDEX idx_vocab_lemma ON vocabulary_items(lemma);
-CREATE INDEX idx_vocab_metadata_gin ON vocabulary_items USING gin (metadata);
+CREATE INDEX idx_known_words_user_language ON known_words(user_id, language);
+CREATE INDEX idx_known_words_user_id ON known_words(user_id);
+CREATE INDEX idx_known_words_lemma ON known_words(lemma);
+CREATE INDEX idx_known_words_grade_level ON known_words(grade_level);
+CREATE INDEX idx_known_words_metadata_gin ON known_words USING gin (metadata);
 
 CREATE INDEX idx_analyses_user_id ON analyses(user_id);
 CREATE INDEX idx_analyses_text_hash ON analyses(text_hash);

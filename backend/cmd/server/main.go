@@ -36,7 +36,8 @@ func main() {
 		log.Fatalf("Failed to initialize tokenizer: %v", err)
 	}
 
-	analysisService := analysis.NewService(tokenizer)
+	analysisRepo := analysis.NewRepository(db)
+	analysisService := analysis.NewService(tokenizer, analysisRepo)
 	analysisHandler := analysis.NewAnalysisHandler(analysisService)
 
 	r := gin.Default()

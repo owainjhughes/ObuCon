@@ -8,23 +8,24 @@ import (
 
 // Reference: https://gorm.io/docs/models.html
 type User struct {
-	ID           uint      `gorm:"primaryKey" json:"id"`
-	Email        string    `gorm:"uniqueIndex;not null" json:"email"`
-	Username     string    `gorm:"uniqueIndex;size:50;not null" json:"username"`
-	PasswordHash string    `gorm:"not null" json:"-"` // Never expose in JSON
-	CreatedAt    time.Time `json:"created_at"`
-	UpdatedAt    time.Time `json:"updated_at"`
+	ID           uint        `gorm:"primaryKey" json:"id"`
+	Email        string      `gorm:"uniqueIndex;not null" json:"email"`
+	Username     string      `gorm:"uniqueIndex;size:50;not null" json:"username"`
+	PasswordHash string      `gorm:"not null" json:"-"` // Never expose in JSON
+	CreatedAt    time.Time   `json:"created_at"`
+	UpdatedAt    time.Time   `json:"updated_at"`
+	KnownWords   []KnownWord `gorm:"foreignKey:UserID;constraint:OnDelete:CASCADE" json:"known_words,omitempty"`
 }
 
 func (User) TableName() string {
 	return "users"
 }
 
-// VocabularyItem represents a word in a user's known vocabulary
+// KnownWord represents a user-scoped known word entry.
 // Reference:
 //   - GORM JSONB: https://gorm.io/docs/data_types.html
 //   - PostgreSQL JSONB queries: https://www.postgresql.org/docs/current/datatype-json.html
-type VocabularyItem struct {
+type KnownWord struct {
 	ID         uint              `gorm:"primaryKey" json:"id"`
 	UserID     uint              `gorm:"not null;index" json:"user_id"`
 	Language   string            `gorm:"size:10;not null" json:"language"` // 'ja', 'de', 'ko', etc.
@@ -35,8 +36,8 @@ type VocabularyItem struct {
 	CreatedAt  time.Time         `json:"created_at"`
 }
 
-func (VocabularyItem) TableName() string {
-	return "vocabulary_items"
+func (KnownWord) TableName() string {
+	return "known_words"
 }
 
 // Analysis represents a single text analysis session
