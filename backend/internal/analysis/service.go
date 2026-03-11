@@ -4,11 +4,13 @@ import (
 	"context"
 	"fmt"
 	"obucon/internal/lang/ja"
+	"strings"
 )
 
 type AnalysisResult struct {
 	Tokens      []EnrichedToken `json:"tokens"`
 	TotalTokens int             `json:"total_tokens"`
+	Missing     []string        `json:"missing"`
 }
 
 type EnrichedToken struct {
@@ -42,7 +44,7 @@ func (s *Service) AnalyzeText(ctx context.Context, userID uint, language, text s
 
 	lemmas := uniqueLemmas(tokens)
 
-	knownLemmas, err := s.repo.GetKnownLemmas(ctx, userID, language, lemmas)
+	knownLemmas, err := s.repo.GetKnownLemmasWithDictionaryVariants(ctx, userID, language, lemmas)
 	if err != nil {
 		return nil, fmt.Errorf("failed to check known words: %w", err)
 	}
@@ -53,25 +55,66 @@ func (s *Service) AnalyzeText(ctx context.Context, userID uint, language, text s
 	}
 
 	enrichedTokens := make([]EnrichedToken, 0, len(tokens))
+	missing := make(map[string]struct{})
+
 	for _, token := range tokens {
 		var gradeLevel *int
 		if level, ok := gradeLevels[token.Lemma]; ok {
 			value := level
 			gradeLevel = &value
+		} else if strings.HasSuffix(token.Lemma, "さ") {
+			// Handle nominalized adjective forms like 美しさ by falling back to the base adjective.
+			base := strings.TrimSuffix(token.Lemma, "さ")
+			if level, ok := gradeLevels[base]; ok {
+				value := level
+				gradeLevel = &value
+			}
+		}
+
+		isGrammarToken := strings.Contains(token.PartOfSpeech, "助詞") || strings.Contains(token.PartOfSpeech, "助動詞") || strings.Contains(token.PartOfSpeech, "記号") || strings.Contains(token.PartOfSpeech, "動詞 接尾") || strings.Contains(token.PartOfSpeech, "動詞 非自立")
+
+		baseLemma := token.Lemma
+		if strings.HasSuffix(baseLemma, "さ") {
+			baseLemma = strings.TrimSuffix(baseLemma, "さ")
+		}
+
+		// For conjugated verbs, also allow matching against the dictionary root (e.g. 知る)
+		rootLemma := baseLemma
+		// Prefer stripping longer suffixes first to avoid over-stripping (e.g. られる -> る)
+		if strings.HasSuffix(rootLemma, "られる") {
+			rootLemma = strings.TrimSuffix(rootLemma, "られる")
+		} else if strings.HasSuffix(rootLemma, "れる") {
+			rootLemma = strings.TrimSuffix(rootLemma, "れる")
+		}
+
+		isKnown := isGrammarToken || knownLemmas[token.Lemma] || knownLemmas[token.Surface] || knownLemmas[baseLemma] || knownLemmas[rootLemma]
+
+		if !isKnown {
+			_, hasGrade := gradeLevels[token.Lemma]
+			_, hasGradeBase := gradeLevels[baseLemma]
+			if !hasGrade && !hasGradeBase {
+				missing[token.Lemma] = struct{}{}
+			}
 		}
 
 		enrichedTokens = append(enrichedTokens, EnrichedToken{
 			Surface:    token.Surface,
 			Lemma:      token.Lemma,
 			POS:        token.PartOfSpeech,
-			IsKnown:    knownLemmas[token.Lemma],
+			IsKnown:    isKnown,
 			GradeLevel: gradeLevel,
 		})
+	}
+
+	missingSlice := make([]string, 0, len(missing))
+	for m := range missing {
+		missingSlice = append(missingSlice, m)
 	}
 
 	return &AnalysisResult{
 		Tokens:      enrichedTokens,
 		TotalTokens: len(enrichedTokens),
+		Missing:     missingSlice,
 	}, nil
 }
 
@@ -86,20 +129,25 @@ func (s *Service) AddBulkKnownVocabulary(ctx context.Context, userID uint, langu
 }
 
 func uniqueLemmas(tokens []ja.Token) []string {
-	seen := make(map[string]struct{}, len(tokens))
-	lemmas := make([]string, 0, len(tokens))
+	seen := make(map[string]struct{}, len(tokens)*2)
+	lemmas := make([]string, 0, len(tokens)*2)
+
+	add := func(s string) {
+		if s == "" {
+			return
+		}
+		if _, exists := seen[s]; exists {
+			return
+		}
+		seen[s] = struct{}{}
+		lemmas = append(lemmas, s)
+	}
 
 	for _, token := range tokens {
-		if token.Lemma == "" {
-			continue
+		add(token.Lemma)
+		if token.Surface != token.Lemma {
+			add(token.Surface)
 		}
-
-		if _, exists := seen[token.Lemma]; exists {
-			continue
-		}
-
-		seen[token.Lemma] = struct{}{}
-		lemmas = append(lemmas, token.Lemma)
 	}
 
 	return lemmas

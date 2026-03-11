@@ -143,7 +143,90 @@ func (r *Repository) GetKnownLemmas(ctx context.Context, userID uint, language s
 	return known, nil
 }
 
-// VocabEntry represents a known word with optional dictionary meaning.
+// expands the given lemmas by including other forms (kanji/hiragana variants) from the dictionary
+func (r *Repository) GetKnownLemmasWithDictionaryVariants(ctx context.Context, userID uint, language string, lemmas []string) (map[string]bool, error) {
+	// Start with the direct known lemmas.
+	known, err := r.GetKnownLemmas(ctx, userID, language, lemmas)
+	if err != nil {
+		return nil, err
+	}
+
+	// if we already have known entries for all lemmas, skip
+	if len(known) == len(lemmas) {
+		return known, nil
+	}
+
+	variantMap := make(map[string]map[string]struct{}, len(lemmas))
+	for _, l := range lemmas {
+		variantMap[l] = map[string]struct{}{l: {}}
+	}
+
+	var dictRows []struct {
+		Kanji    string `gorm:"column:kanji"`
+		Hiragana string `gorm:"column:hiragana"`
+	}
+	err = r.db.WithContext(ctx).
+		Model(&models.JapaneseDictionary{}).
+		Select("kanji, hiragana").
+		Where("kanji IN ? OR hiragana IN ?", lemmas, lemmas).
+		Find(&dictRows).Error
+	if err != nil {
+		return nil, err
+	}
+
+	variantSet := make(map[string]struct{})
+	for _, row := range dictRows {
+		if row.Kanji == "" || row.Hiragana == "" {
+			continue
+		}
+
+		// If the row matches any input lemma, add both forms as variants.
+		if _, ok := variantMap[row.Kanji]; ok {
+			variantMap[row.Kanji][row.Hiragana] = struct{}{}
+		}
+		if _, ok := variantMap[row.Hiragana]; ok {
+			variantMap[row.Hiragana][row.Kanji] = struct{}{}
+		}
+
+		variantSet[row.Kanji] = struct{}{}
+		variantSet[row.Hiragana] = struct{}{}
+	}
+
+	// Collect variants that are not already known.
+	variants := make([]string, 0, len(variantSet))
+	for v := range variantSet {
+		if !known[v] {
+			variants = append(variants, v)
+		}
+	}
+
+	if len(variants) == 0 {
+		return known, nil
+	}
+
+	variantKnown, err := r.GetKnownLemmas(ctx, userID, language, variants)
+	if err != nil {
+		return nil, err
+	}
+
+	// Mark any known variant as known for all related lemmas.
+	for lemma, variants := range variantMap {
+		for v := range variants {
+			if variantKnown[v] {
+				known[lemma] = true
+				break
+			}
+		}
+	}
+
+	// Also include direct variant matches (e.g. if the user knows the kanji form directly).
+	for v := range variantKnown {
+		known[v] = true
+	}
+
+	return known, nil
+}
+
 type VocabEntry struct {
 	Lemma      string `json:"lemma"`
 	GradeLevel *int   `json:"grade_level"`
@@ -187,21 +270,35 @@ func (r *Repository) ListKnownWordsWithMeaning(ctx context.Context, userID uint,
 func (r *Repository) BulkAddKnownWordsByJLPT(ctx context.Context, userID uint, language string, jlptLevel int) (int64, error) {
 	fmt.Print("Analysis Repository BulkAddKnownWordsByJLPT Function Reached\n")
 
-	// Insert JLPT words for the user, avoiding duplicates.
-	// Uses PostgreSQL INSERT ... SELECT ... ON CONFLICT DO NOTHING.
+	var totalRows int64
+
 	res := r.db.WithContext(ctx).Exec(
 		`INSERT INTO known_words (user_id, language, lemma, grade_level, status, created_at)
 		 SELECT ?, ?, japanese_dictionary.kanji, ?, 'known', CURRENT_TIMESTAMP
 		 FROM japanese_dictionary
-		 WHERE jlpt_level = ?
+		 WHERE jlpt_level = ? AND japanese_dictionary.kanji <> ''
 		 ON CONFLICT (user_id, language, lemma) DO NOTHING`,
 		userID, language, jlptLevel, jlptLevel,
 	)
 	if res.Error != nil {
 		return 0, res.Error
 	}
+	totalRows += res.RowsAffected
 
-	return res.RowsAffected, nil
+	res = r.db.WithContext(ctx).Exec(
+		`INSERT INTO known_words (user_id, language, lemma, grade_level, status, created_at)
+		 SELECT ?, ?, japanese_dictionary.hiragana, ?, 'known', CURRENT_TIMESTAMP
+		 FROM japanese_dictionary
+		 WHERE jlpt_level = ? AND japanese_dictionary.hiragana <> ''
+		 ON CONFLICT (user_id, language, lemma) DO NOTHING`,
+		userID, language, jlptLevel, jlptLevel,
+	)
+	if res.Error != nil {
+		return totalRows, res.Error
+	}
+	totalRows += res.RowsAffected
+
+	return totalRows, nil
 }
 
 func (r *Repository) GetDictionaryGradeLevels(ctx context.Context, language string, lemmas []string) (map[string]int, error) {

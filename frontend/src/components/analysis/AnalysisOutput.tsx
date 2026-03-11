@@ -2,12 +2,14 @@ import React from 'react'
 
 interface Token {
   surface: string
+  pos: string
   is_known: boolean
   grade_level?: number | null
 }
 
 interface AnalysisOutputProps {
   tokens: Token[]
+  missing: string[]
   onReset: () => void
 }
 
@@ -42,9 +44,36 @@ function createPieSegments(counts: Record<string, number>) {
   return segments
 }
 
-export default function AnalysisOutput({ tokens, onReset }: AnalysisOutputProps) {
+function isAuxiliary(token: Token) {
+  return token.pos.includes('助動詞') || token.pos.includes('動詞 非自立')
+}
+
+function combineTokensForDisplay(tokens: Token[]) {
+  const combined: Array<{ surface: string; is_known: boolean; grade_level?: number | null }> = []
+
+  for (let i = 0; i < tokens.length; i++) {
+    const token = tokens[i]
+    // If this token is a verb and the next is an auxiliary, combine them for clearer display
+    if (token.pos.includes('動詞') && i + 1 < tokens.length && isAuxiliary(tokens[i + 1])) {
+      const combinedSurface = token.surface + tokens[i + 1].surface
+      const combinedKnown = token.is_known || tokens[i + 1].is_known
+      const gradeLevel = token.grade_level ?? tokens[i + 1].grade_level
+      combined.push({ surface: combinedSurface, is_known: combinedKnown, grade_level: gradeLevel })
+      i += 1
+      continue
+    }
+
+    combined.push({ surface: token.surface, is_known: token.is_known, grade_level: token.grade_level })
+  }
+
+  return combined
+}
+
+export default function AnalysisOutput({ tokens, missing, onReset }: AnalysisOutputProps) {
+  const displayTokens = combineTokensForDisplay(tokens)
   const total = tokens.length
   const knownCount = tokens.filter((t) => t.is_known).length
+  const missingCount = missing.length
   const knownPct = total === 0 ? 0 : (knownCount / total) * 100
   const rating = getRating(knownPct)
 
@@ -77,17 +106,21 @@ export default function AnalysisOutput({ tokens, onReset }: AnalysisOutputProps)
           </div>
 
           <div className="mt-6 rounded-lg border border-gray-200 bg-gray-50 p-4 text-sm leading-relaxed">
-            {tokens.map((token, idx) => (
-              <span
-                key={idx}
-                className={`inline text-xs font-medium ${
-                  token.is_known
-                    ? 'bg-emerald-100 text-emerald-800'
-                    : 'bg-rose-100 text-rose-800'
-                }`}
-              >
-                {token.surface}
-              </span>
+            {displayTokens.map((token, idx) => (
+              <React.Fragment key={idx}>
+                <span
+                  className={`inline text-xs font-medium ${
+                    token.is_known
+                      ? 'bg-emerald-100 text-emerald-800'
+                      : 'bg-rose-100 text-rose-800'
+                  }`}
+                >
+                  {token.surface}
+                </span>
+                {idx < displayTokens.length - 1 && (
+                  <span className="mx-1 inline text-xs font-medium text-gray-400">·</span>
+                )}
+              </React.Fragment>
             ))}
           </div>
         </div>
@@ -164,6 +197,28 @@ export default function AnalysisOutput({ tokens, onReset }: AnalysisOutputProps)
               </div>
             </div>
           </div>
+
+          {missingCount > 0 && (
+            <div className="mt-8">
+              <h4 className="text-sm font-semibold text-gray-700">Missing words</h4>
+              <p className="mt-1 text-xs text-gray-500">
+                These words were not found in your known vocabulary or the JLPT dictionary.
+              </p>
+              <div className="mt-2 flex flex-wrap gap-2">
+                {missing.slice(0, 30).map((word) => (
+                  <span
+                    key={word}
+                    className="rounded bg-rose-50 px-2 py-1 text-xs font-medium text-rose-700"
+                  >
+                    {word}
+                  </span>
+                ))}
+                {missingCount > 30 && (
+                  <span className="text-xs text-gray-500">+{missingCount - 30} more</span>
+                )}
+              </div>
+            </div>
+          )}
         </aside>
       </div>
     </section>

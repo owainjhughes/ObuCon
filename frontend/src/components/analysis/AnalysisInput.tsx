@@ -15,6 +15,7 @@ interface Token {
 interface AnalysisResult {
   tokens: Token[]
   total_tokens: number
+  missing: string[]
 }
 
 export default function AnalysisInput() {
@@ -50,7 +51,13 @@ export default function AnalysisInput() {
   }
 
   if (result) {
-    return <AnalysisOutput tokens={result.tokens} onReset={resetAnalysis} />
+    return (
+      <AnalysisOutput
+        tokens={result.tokens}
+        missing={result.missing}
+        onReset={resetAnalysis}
+      />
+    )
   }
 
   return (

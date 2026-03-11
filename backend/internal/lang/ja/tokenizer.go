@@ -51,13 +51,12 @@ func (tok *Tokenizer) Tokenize(text string) ([]Token, error) {
 	result := make([]Token, 0, len(tokens))
 
 	for _, t := range tokens {
-		pos := ""
-		if len(t.POS()) > 0 {
-			pos = t.POS()[0]
-		}
+		pos := strings.Join(t.POS(), " ")
 
 		lemma := t.Surface
-		if len(t.POS()) > 6 {
+		if base, ok := t.BaseForm(); ok && base != "" {
+			lemma = base
+		} else if len(t.POS()) > 6 {
 			lemma = t.POS()[6]
 		}
 
