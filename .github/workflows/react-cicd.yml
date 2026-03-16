@@ -19,6 +19,17 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
+      - name: Validate deploy secrets
+        env:
+          DEPLOY_HOST: ${{ secrets.EC2_HOST || vars.EC2_HOST }}
+          DEPLOY_USER: ${{ secrets.EC2_USER || vars.EC2_USER }}
+          DEPLOY_KEY: ${{ secrets.EC2_SSH_KEY }}
+        run: |
+          set -e
+          [ -n "$DEPLOY_HOST" ] || { echo "Missing EC2 host: set repo secret EC2_HOST (or variable EC2_HOST)." >&2; exit 1; }
+          [ -n "$DEPLOY_USER" ] || { echo "Missing EC2 user: set repo secret EC2_USER (or variable EC2_USER)." >&2; exit 1; }
+          [ -n "$DEPLOY_KEY" ] || { echo "Missing EC2 SSH key: set repo secret EC2_SSH_KEY." >&2; exit 1; }
+
       - name: Setup Node
         uses: actions/setup-node@v4
         with:
@@ -42,17 +53,17 @@ jobs:
       - name: Upload build artifact to EC2
         uses: appleboy/scp-action@v0.1.7
         with:
-          host: ${{ secrets.EC2_HOST }}
-          username: ${{ secrets.EC2_USER }}
+          host: ${{ secrets.EC2_HOST || vars.EC2_HOST }}
+          username: ${{ secrets.EC2_USER || vars.EC2_USER }}
           key: ${{ secrets.EC2_SSH_KEY }}
           source: "frontend-build.tar.gz"
-          target: "/home/${{ secrets.EC2_USER }}/"
+          target: "/home/${{ secrets.EC2_USER || vars.EC2_USER }}/"
 
       - name: Deploy frontend on EC2
         uses: appleboy/ssh-action@v1.0.3
         with:
-          host: ${{ secrets.EC2_HOST }}
-          username: ${{ secrets.EC2_USER }}
+          host: ${{ secrets.EC2_HOST || vars.EC2_HOST }}
+          username: ${{ secrets.EC2_USER || vars.EC2_USER }}
           key: ${{ secrets.EC2_SSH_KEY }}
           script: |
             set -e

@@ -21,19 +21,19 @@ export default function Footer() {
                     <div>
                         <div className="text-xs font-semibold tracking-wide text-gray-400">ObuCon</div>
                         <ul className="mt-4 space-y-3 text-sm text-gray-700">
-                            <li><a href="#" className="hover:text-gray-900">About</a></li>
-                            <li><a href="#" className="hover:text-gray-900">Features</a></li>
-                            <li><a href="#" className="hover:text-gray-900">Blog</a></li>
-                            <li><a href="#" className="hover:text-gray-900">Contact</a></li>
+                            <li><a href="/about" className="hover:text-gray-900">About</a></li>
+                            <li><a href="/features" className="hover:text-gray-900">Features</a></li>
+                            <li><a href="/blog" className="hover:text-gray-900">Blog</a></li>
+                            <li><a href="/contact" className="hover:text-gray-900">Contact</a></li>
                         </ul>
                     </div>
                     <div>
                         <div className="text-xs font-semibold tracking-wide text-gray-400">Other</div>
                         <ul className="mt-4 space-y-3 text-sm text-gray-700">
-                            <li><a href="#" className="hover:text-gray-900">Feedback</a></li>
-                            <li><a href="#" className="hover:text-gray-900">Terms</a></li>
-                            <li><a href="#" className="hover:text-gray-900">Privacy</a></li>
-                            <li><a href="#" className="hover:text-gray-900">Cookies</a></li>
+                            <li><a href="/feedback" className="hover:text-gray-900">Feedback</a></li>
+                            <li><a href="/terms" className="hover:text-gray-900">Terms</a></li>
+                            <li><a href="/privacy" className="hover:text-gray-900">Privacy</a></li>
+                            <li><a href="/cookies" className="hover:text-gray-900">Cookies</a></li>
                         </ul>
                     </div>
                 </div>

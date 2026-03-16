@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useEffect, useState } from "react";
+import React, { createContext, useCallback, useContext, useEffect, useState } from "react";
 import { apiClient } from "../api/client";
 
 export interface AuthUser {
@@ -34,7 +34,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     username: data.username,
   });
 
-  const refresh = async () => {
+  const refresh = useCallback(async () => {
     try {
       const response = await apiClient.get("/auth/me");
       setUser(mapUser(response.data));
@@ -43,11 +43,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     } finally {
       setIsLoading(false);
     }
-  };
+  }, []);
 
   useEffect(() => {
     refresh();
-  }, []);
+  }, [refresh]);
 
   const login = async (email: string, password: string) => {
     await apiClient.post("/auth/login", { email, password });
