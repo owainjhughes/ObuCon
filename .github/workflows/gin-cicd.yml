@@ -121,6 +121,8 @@ jobs:
               exit 1
             fi
 
+            cp ~/.env.prod ~/infra/docker/.env.prod
+
             cat > ~/.deploy.env <<EOF
             IMAGE_TAG=${IMAGE_TAG}
             EOF
