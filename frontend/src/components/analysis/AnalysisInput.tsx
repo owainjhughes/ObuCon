@@ -22,6 +22,7 @@ interface AnalysisResult {
 export default function AnalysisInput() {
   const [mode, setMode] = useState<AnalysisMode>('text')
   const [text, setText] = useState('')
+  const [selectedFile, setSelectedFile] = useState<File | null>(null)
   const [language] = useState('ja')
   const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState('')
@@ -33,10 +34,31 @@ export default function AnalysisInput() {
     setIsLoading(true)
 
     try {
-      const response = await apiClient.post('/analyze', {
-        text,
-        language,
-      })
+      let response
+
+      if (mode === 'file') {
+        if (!selectedFile) {
+          setError('Please choose a .txt, .md, .docx, or .pdf file first')
+          setIsLoading(false)
+          return
+        }
+
+        const payload = new FormData()
+        payload.append('file', selectedFile)
+        payload.append('language', language)
+
+        response = await apiClient.post('/analyze/file', payload, {
+          headers: {
+            'Content-Type': 'multipart/form-data',
+          },
+        })
+      } else {
+        response = await apiClient.post('/analyze', {
+          text,
+          language,
+        })
+      }
+
       setResult(response.data)
     } catch (err: unknown) {
       setError(getApiErrorMessage(err, 'Analysis failed'))
@@ -49,6 +71,8 @@ export default function AnalysisInput() {
     setResult(null)
     setError('')
   }
+
+  const canAnalyse = mode === 'file' ? Boolean(selectedFile) : Boolean(text.trim())
 
   if (result) {
     return (
@@ -117,8 +141,25 @@ export default function AnalysisInput() {
           )}
 
           {mode === 'file' && (
-            <div className="rounded-lg border border-dashed border-gray-300 bg-gray-50 px-4 py-6 text-sm text-gray-500 text-center">
-              File upload is not yet available.
+            <div className="rounded-lg border border-dashed border-gray-300 bg-gray-50 px-4 py-6">
+              <label className="block">
+                <span className="text-sm font-medium text-gray-700">Upload file (.txt, .md, .docx, .pdf)</span>
+                <input
+                  type="file"
+                  accept=".txt,.md,.docx,.pdf,text/plain,text/markdown,application/vnd.openxmlformats-officedocument.wordprocessingml.document,application/pdf"
+                  onChange={(e) => {
+                    const file = e.target.files && e.target.files.length > 0 ? e.target.files[0] : null
+                    setSelectedFile(file)
+                    setError('')
+                  }}
+                  className="mt-2 block w-full rounded-lg border border-gray-300 bg-white p-2 text-sm text-gray-900 file:mr-3 file:rounded-md file:border-0 file:bg-[#55F] file:px-3 file:py-1.5 file:text-sm file:text-white"
+                />
+              </label>
+              {selectedFile && (
+                <p className="mt-3 text-sm text-gray-600">
+                  Selected: <span className="font-medium text-gray-800">{selectedFile.name}</span> ({Math.max(1, Math.round(selectedFile.size / 1024))} KB)
+                </p>
+              )}
             </div>
           )}
 
@@ -130,7 +171,7 @@ export default function AnalysisInput() {
           <div className="mt-4 flex justify-end">
             <button
               onClick={handleAnalyse}
-              disabled={isLoading || !text.trim()}
+              disabled={isLoading || !canAnalyse}
               className="rounded-full border px-4 py-1.5 text-sm border-[#55F] bg-[#55F] text-white disabled:cursor-not-allowed disabled:opacity-50"
             >
               {isLoading ? 'Analysing...' : 'Analyse'}

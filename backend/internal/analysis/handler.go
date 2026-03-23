@@ -3,6 +3,7 @@ package analysis
 import (
 	"net/http"
 	"obucon/internal/helpers"
+	"strings"
 
 	"github.com/gin-gonic/gin"
 )
@@ -62,6 +63,49 @@ func (h *AnalysisHandler) AnalyzeText(c *gin.Context) {
 	}
 
 	c.JSON(http.StatusOK, result)
+}
+
+func (h *AnalysisHandler) AnalyzeFile(c *gin.Context) {
+	userID, ok := helpers.UserIDFromContext(c)
+	if !ok {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "unauthorized"})
+		return
+	}
+
+	language := strings.TrimSpace(c.PostForm("language"))
+	if len(language) != 2 {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "language must be a 2-character code"})
+		return
+	}
+
+	fileHeader, err := c.FormFile("file")
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "file is required"})
+		return
+	}
+
+	extraction, err := helpers.ExtractTextFromFileHeader(fileHeader)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	result, err := h.analysisService.AnalyzeText(c.Request.Context(), userID, language, extraction.Text)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"tokens":       result.Tokens,
+		"total_tokens": result.TotalTokens,
+		"missing":      result.Missing,
+		"source": gin.H{
+			"filename":        extraction.Filename,
+			"bytes":           extraction.Bytes,
+			"extracted_chars": extraction.ExtractedChars,
+		},
+	})
 }
 
 func (h *AnalysisHandler) ListVocabulary(c *gin.Context) {
