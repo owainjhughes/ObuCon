@@ -21,6 +21,17 @@ resource "aws_security_group" "app" {
 
 # Ingress rules
 
+resource "aws_vpc_security_group_ingress_rule" "ssh" {
+  count = var.create_sg ? 1 : 0
+
+  security_group_id = aws_security_group.app[0].id
+  cidr_ipv4         = "0.0.0.0/0"
+  ip_protocol       = "tcp"
+  from_port         = 22
+  to_port           = 22
+  description       = "SSH"
+}
+
 resource "aws_vpc_security_group_ingress_rule" "http" {
   count = var.create_sg ? 1 : 0
 
