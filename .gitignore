@@ -29,6 +29,8 @@ backend/migrations/002_seed_jlpt_vocabulary.down.sql
 /backend/go.sum
 /DEPLOYMENT_WORKFLOW_DISSERTATION.md
 /infra/terraform/environments/prod/terraform.tfvars.example
+\backend\.env
+\backend\.env.docker
 
 # Terraform
 /infra/terraform/**/.terraform/
