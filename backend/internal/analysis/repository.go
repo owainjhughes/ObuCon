@@ -250,6 +250,73 @@ func (r *Repository) RemoveKnownWord(ctx context.Context, userID uint, language,
 	return nil
 }
 
+type ReviewWord struct {
+	Lemma     string `json:"lemma"`
+	Hiragana  string `json:"hiragana"`
+	Meaning   string `json:"meaning"`
+	JLPTLevel *int   `json:"jlpt_level"`
+}
+
+func (r *Repository) GetDictionaryEntries(ctx context.Context, language string, lemmas []string) ([]ReviewWord, error) {
+	if len(lemmas) == 0 {
+		return nil, nil
+	}
+
+	switch language {
+	case "ja":
+		type dictionaryRow struct {
+			Kanji     string `gorm:"column:kanji"`
+			Hiragana  string `gorm:"column:hiragana"`
+			Meaning   string `gorm:"column:meaning"`
+			JLPTLevel *int   `gorm:"column:jlpt_level"`
+		}
+
+		var rows []dictionaryRow
+		err := r.db.WithContext(ctx).
+			Model(&models.JapaneseDictionary{}).
+			Select("kanji, hiragana, meaning, jlpt_level").
+			Where("(kanji IN ? OR hiragana IN ?) AND meaning != ''", lemmas, lemmas).
+			Order("jlpt_level DESC NULLS LAST").
+			Find(&rows).Error
+		if err != nil {
+			return nil, err
+		}
+
+		lemmaSet := make(map[string]struct{}, len(lemmas))
+		for _, l := range lemmas {
+			lemmaSet[l] = struct{}{}
+		}
+
+		seen := make(map[string]struct{}, len(lemmas))
+		result := make([]ReviewWord, 0, len(lemmas))
+		for _, row := range rows {
+			var matchedLemma string
+			if _, ok := lemmaSet[row.Kanji]; ok && row.Kanji != "" {
+				matchedLemma = row.Kanji
+			} else if _, ok := lemmaSet[row.Hiragana]; ok {
+				matchedLemma = row.Hiragana
+			} else {
+				continue
+			}
+
+			if _, found := seen[matchedLemma]; found {
+				continue
+			}
+			seen[matchedLemma] = struct{}{}
+			result = append(result, ReviewWord{
+				Lemma:     matchedLemma,
+				Hiragana:  row.Hiragana,
+				Meaning:   row.Meaning,
+				JLPTLevel: row.JLPTLevel,
+			})
+		}
+
+		return result, nil
+	}
+
+	return nil, nil
+}
+
 func (r *Repository) GetDictionaryGradeLevels(ctx context.Context, language string, lemmas []string) (map[string]int, error) {
 	levels := make(map[string]int)
 	if len(lemmas) == 0 {

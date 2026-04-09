@@ -23,6 +23,7 @@ func registerProtectedRoutes(group *gin.RouterGroup, authHandler *auth.AuthHandl
 	group.POST("/vocab/known", analysisHandler.AddKnownWord)
 	group.PUT("/vocab/known", analysisHandler.UpdateKnownWord)
 	group.DELETE("/vocab/known", analysisHandler.RemoveKnownWord)
+	group.GET("/review/words", analysisHandler.GetReviewWords)
 }
 
 func main() {

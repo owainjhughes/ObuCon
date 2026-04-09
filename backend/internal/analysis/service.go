@@ -210,6 +210,13 @@ func (s *Service) RemoveKnownWord(ctx context.Context, userID uint, language, le
 	return nil
 }
 
+func (s *Service) GetReviewWords(ctx context.Context, language string, lemmas []string) ([]ReviewWord, error) {
+	if len(lemmas) == 0 {
+		return nil, nil
+	}
+	return s.repo.GetDictionaryEntries(ctx, language, lemmas)
+}
+
 func uniqueLemmas(tokens []ja.Token) []string {
 	seen := make(map[string]struct{}, len(tokens)*2)
 	lemmas := make([]string, 0, len(tokens)*2)

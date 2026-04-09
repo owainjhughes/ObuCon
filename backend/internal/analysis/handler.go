@@ -216,3 +216,39 @@ func (h *AnalysisHandler) RemoveKnownWord(c *gin.Context) {
 
 	c.Status(http.StatusNoContent)
 }
+
+func (h *AnalysisHandler) GetReviewWords(c *gin.Context) {
+	lemmasParam := strings.TrimSpace(c.Query("lemmas"))
+	language := strings.TrimSpace(c.DefaultQuery("language", "ja"))
+
+	if lemmasParam == "" {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "lemmas query parameter is required"})
+		return
+	}
+
+	if len(language) != 2 {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "language must be a 2-character code"})
+		return
+	}
+
+	rawLemmas := strings.Split(lemmasParam, ",")
+	lemmas := make([]string, 0, len(rawLemmas))
+	for _, l := range rawLemmas {
+		if trimmed := strings.TrimSpace(l); trimmed != "" {
+			lemmas = append(lemmas, trimmed)
+		}
+	}
+
+	const maxLemmas = 200
+	if len(lemmas) > maxLemmas {
+		lemmas = lemmas[:maxLemmas]
+	}
+
+	words, err := h.analysisService.GetReviewWords(c.Request.Context(), language, lemmas)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{"words": words})
+}

@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react'
 import { apiClient } from '../../api/client'
+import ReviewSession from './ReviewSession'
 
 interface Token {
   surface: string
@@ -83,12 +84,14 @@ export default function AnalysisOutput({ tokens, missing, onReset }: AnalysisOut
   const [addingByLemma, setAddingByLemma] = useState<Record<string, boolean>>({})
   const [addError, setAddError] = useState('')
   const [addingAll, setAddingAll] = useState(false)
+  const [showReview, setShowReview] = useState(false)
 
   useEffect(() => {
     setLocalTokens(tokens)
     setLocalMissing(missing)
     setAddingByLemma({})
     setAddError('')
+    setShowReview(false)
   }, [tokens, missing])
 
   const handleAddKnown = async (lemma: string) => {
@@ -123,6 +126,18 @@ export default function AnalysisOutput({ tokens, missing, onReset }: AnalysisOut
     }
   }
 
+  const handleWordMarked = (lemma: string) => {
+    setLocalTokens((prev) =>
+      prev.map((t) =>
+        t.lemma === lemma || t.surface === lemma ? { ...t, is_known: true } : t
+      )
+    )
+  }
+
+  const reviewableCount = [...new Set(
+    localTokens.filter((t) => !t.is_known && t.grade_level != null).map((t) => t.lemma)
+  )].length
+
   const displayTokens = combineTokensForDisplay(localTokens)
   
   // Filter out roman tokens for statistics
@@ -154,14 +169,25 @@ export default function AnalysisOutput({ tokens, missing, onReset }: AnalysisOut
   return (
     <section className="px-4 py-6">
       <div className="w-full">
-        <button
-          type="button"
-          onClick={onReset}
-          className="mb-3 flex items-center gap-1 text-sm text-gray-500 hover:text-gray-800"
-        >
-          <span aria-hidden="true">&larr;</span>
-          New analysis
-        </button>
+        <div className="mb-3 flex items-center justify-between">
+          <button
+            type="button"
+            onClick={onReset}
+            className="flex items-center gap-1 text-sm text-gray-500 hover:text-gray-800"
+          >
+            <span aria-hidden="true">&larr;</span>
+            New analysis
+          </button>
+          {reviewableCount > 0 && (
+            <button
+              type="button"
+              onClick={() => setShowReview(true)}
+              className="rounded-full border border-[#55F] px-3 py-1 text-xs font-semibold text-[#55F] hover:bg-[#55F] hover:text-white"
+            >
+              Review {reviewableCount} unknown word{reviewableCount === 1 ? '' : 's'}
+            </button>
+          )}
+        </div>
         <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
         <div className="lg:col-span-2 rounded-xl border border-gray-200 bg-white p-6 shadow-sm">
           <h3 className="text-lg font-semibold text-gray-900">Text</h3>
@@ -300,6 +326,14 @@ export default function AnalysisOutput({ tokens, missing, onReset }: AnalysisOut
         </aside>
         </div>
       </div>
+      {showReview && (
+        <ReviewSession
+          tokens={localTokens}
+          language="ja"
+          onClose={() => setShowReview(false)}
+          onWordMarked={handleWordMarked}
+        />
+      )}
     </section>
   )
 }
