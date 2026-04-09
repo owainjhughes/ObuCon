@@ -5,13 +5,15 @@ Online web application that determines the suitability of an online text-based r
 
 It is like a much more personalised and learning-focused version of [jreadability](https://jreadability.net/sys/en) or [Kuma Learn](https://app.kumalearn.com/text-analysis)
 
+Can be foudn at [this link](https://obucon.com)
+
 #### Architecture Decisions
 
 ##### Stack Choices
 - Frontend: React
 - Backend: Go + Gin
 - Database: PostgreSQL
-- Deployment: Docker, Terraform, AWS (EC2 + RDS)
+- Deployment: Docker, Terraform, AWS (Cloudfront + EC2 + RDS)
 - CI/CD: GitHub Actions
 
 ### How to use
