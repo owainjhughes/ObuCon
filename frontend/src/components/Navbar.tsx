@@ -29,21 +29,20 @@ export default function Navbar() {
 			as="nav"
 			className="bg-gray-100 text-gray-900">
 			<div className="mx-auto max-w-6xl px-4">
-				<div className="flex h-14 items-center justify-between">
-					<div className="absolute inset-y-0 left-0 flex items-center sm:hidden">
-						{/* Mobile menu button*/}
+				<div className="flex h-14 items-center gap-2">
+					{/* Hamburger - mobile only */}
+					<div className="sm:hidden">
 						<DisclosureButton className="group inline-flex items-center justify-center rounded p-2 hover:bg-gray-200">
-							<span className="absolute -inset-0.5" />
 							<span className="sr-only">Open main menu</span>
 							<Bars3Icon aria-hidden="true" className="block size-6 group-data-[open]:hidden" />
 							<XMarkIcon aria-hidden="true" className="hidden size-6 group-data-[open]:block" />
 						</DisclosureButton>
 					</div>
-					<div className="flex flex-1 items-center justify-center sm:items-stretch sm:justify-start">
+					<div className="flex flex-1 items-center">
 						<div className="flex shrink-0 items-center">
 							<img alt="ObuCon" src="/android-chrome-192x192.png" className="h-7 w-auto" />
 						</div>
-						<div className="hidden sm:ml-6 sm:block">
+						<div className="hidden sm:ml-6 sm:flex sm:items-center sm:gap-4">
 							<div className="flex items-center gap-4">
 								{navigation.map((item) => {
 								const isCurrent = !item.external && (item.href === "/"

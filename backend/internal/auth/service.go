@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"obucon/internal/models"
+	"strings"
 	"time"
 
 	"github.com/golang-jwt/jwt/v5"
@@ -38,6 +39,7 @@ func (s *Service) GetUserByID(ctx context.Context, id uint) (*models.User, error
 }
 
 func (s *Service) Register(ctx context.Context, email, username, password string) (*models.User, error) {
+	email = strings.ToLower(email)
 	existingUser, err := s.userRepo.GetByEmail(ctx, email)
 	if err == nil && existingUser != nil {
 		return nil, errors.New("email already registered")
@@ -67,6 +69,7 @@ func (s *Service) Register(ctx context.Context, email, username, password string
 }
 
 func (s *Service) LoginWithUserID(ctx context.Context, email, password string) (string, uint, error) {
+	email = strings.ToLower(email)
 	user, err := s.userRepo.GetByEmail(ctx, email)
 	if err != nil || user == nil {
 		return "", 0, errors.New("invalid email or password")
@@ -91,6 +94,7 @@ func (s *Service) UpdateProfile(ctx context.Context, userID uint, email, usernam
 	}
 
 	if email != "" && email != user.Email {
+		email = strings.ToLower(email)
 		existing, err := s.userRepo.GetByEmail(ctx, email)
 		if err == nil && existing != nil {
 			return nil, errors.New("email already in use")
