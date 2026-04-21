@@ -23,6 +23,7 @@ export default function Vocab() {
   const [savingLemma, setSavingLemma] = useState<string | null>(null)
   const [deletingLemma, setDeletingLemma] = useState<string | null>(null)
 
+  const [isMobile] = useState(() => window.matchMedia("(pointer: coarse)").matches)
   const [ankiExportDeck, setAnkiExportDeck] = useState("GinAPI Japanese")
   const [ankiDecks, setAnkiDecks] = useState<string[]>([])
   const [selectedAnkiDeck, setSelectedAnkiDeck] = useState("")
@@ -196,7 +197,15 @@ export default function Vocab() {
             Words you have marked as known. Use this list to review or update your vocabulary.
           </p>
 
-<div className="mt-6 rounded-xl border border-gray-200 bg-white p-6 shadow-sm">
+{isMobile ? (
+          <div className="mt-6 rounded-xl border border-gray-200 bg-gray-50 p-6">
+            <h2 className="text-lg font-semibold text-gray-900">Anki Sync</h2>
+            <p className="mt-2 text-sm text-gray-500">
+              Anki Sync is not available on mobile. Please use a desktop browser with Anki open.
+            </p>
+          </div>
+        ) : (
+          <div className="mt-6 rounded-xl border border-gray-200 bg-white p-6 shadow-sm">
           <h2 className="text-lg font-semibold text-gray-900">Anki Sync</h2>
           <p className="mt-1 text-sm text-gray-600">
             Export your vocabulary to Anki as flashcards, or import words from an existing Anki deck. Requires Anki to
@@ -288,6 +297,7 @@ export default function Vocab() {
             </div>
           </div>
         </div>
+        )}
           <div className="mt-6 flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
             <div className="flex flex-1 flex-col gap-2 md:flex-row md:items-center">
               <input

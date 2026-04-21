@@ -79,7 +79,7 @@ export default function Navbar() {
 							</div>
 						</div>
 					</div>
-					<div className="absolute inset-y-0 right-0 flex items-center pr-2 sm:static sm:inset-auto sm:ml-6 sm:pr-0">
+					<div className="hidden sm:flex items-center sm:ml-6">
 						{user ? (
 							<Menu as="div" className="relative ml-3">
 								<MenuButton className="relative flex rounded-full">
@@ -161,6 +161,51 @@ export default function Navbar() {
 							</DisclosureButton>
 						)
 					})}
+					<div className="border-t border-gray-200 mt-2 pt-3">
+						{user ? (
+							<>
+								<DisclosureButton
+									as={Link}
+									to="/profile"
+									className="block py-2 text-base font-medium text-gray-900 hover:text-gray-800"
+								>
+									Your profile
+								</DisclosureButton>
+								<DisclosureButton
+									as={Link}
+									to="/settings"
+									className="block py-2 text-base font-medium text-gray-900 hover:text-gray-800"
+								>
+									Settings
+								</DisclosureButton>
+								<DisclosureButton
+									as="button"
+									type="button"
+									onClick={handleLogout}
+									className="block w-full text-left py-2 text-base font-medium text-gray-900 hover:text-gray-800"
+								>
+									Sign out
+								</DisclosureButton>
+							</>
+						) : (
+							<>
+								<DisclosureButton
+									as={Link}
+									to="/login"
+									className="block py-2 text-base font-medium text-gray-900 hover:text-gray-800"
+								>
+									Login
+								</DisclosureButton>
+								<DisclosureButton
+									as={Link}
+									to="/register"
+									className="block py-2 text-base font-medium text-[#55F] hover:text-[#44E]"
+								>
+									Register
+								</DisclosureButton>
+							</>
+						)}
+					</div>
 				</div>
 			</DisclosurePanel>
 		</Disclosure>
