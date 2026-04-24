@@ -23,6 +23,9 @@ export default function Vocab() {
   const [savingLemma, setSavingLemma] = useState<string | null>(null)
   const [deletingLemma, setDeletingLemma] = useState<string | null>(null)
 
+  const PAGE_SIZE = 15
+  const [currentPage, setCurrentPage] = useState(1)
+
   const [isMobile] = useState(() => window.matchMedia("(pointer: coarse)").matches)
   const [ankiExportDeck, setAnkiExportDeck] = useState("GinAPI Japanese")
   const [ankiDecks, setAnkiDecks] = useState<string[]>([])
@@ -53,6 +56,9 @@ export default function Vocab() {
   const filteredVocab = vocab.filter((entry) =>
     entry.lemma.includes(search) || (entry.meaning || "").toLowerCase().includes(search.toLowerCase())
   )
+
+  const totalPages = Math.max(1, Math.ceil(filteredVocab.length / PAGE_SIZE))
+  const paginatedVocab = filteredVocab.slice((currentPage - 1) * PAGE_SIZE, currentPage * PAGE_SIZE)
 
   const handleImport = async () => {
     setImporting(true)
@@ -190,248 +196,283 @@ export default function Vocab() {
 
   return (
     <Layout>
-      <section className="mx-auto max-w-4xl px-4 py-10">
-        <div className="rounded-xl border border-gray-200 bg-white p-6 shadow-sm">
-          <h1 className="text-xl font-semibold text-gray-900">Known Vocabulary</h1>
-          <p className="mt-1 text-sm text-gray-600">
-            Words you have marked as known. Use this list to review or update your vocabulary.
-          </p>
+      <section className="mx-auto max-w-7xl px-4 py-10">
+        <div className="flex flex-col gap-6 lg:flex-row lg:items-start">
 
-{isMobile ? (
-          <div className="mt-6 rounded-xl border border-gray-200 bg-gray-50 p-6">
-            <h2 className="text-lg font-semibold text-gray-900">Anki Sync</h2>
-            <p className="mt-2 text-sm text-gray-500">
-              Anki Sync is not available on mobile. Please use a desktop browser with Anki open.
-            </p>
-          </div>
-        ) : (
-          <div className="mt-6 rounded-xl border border-gray-200 bg-white p-6 shadow-sm">
-          <h2 className="text-lg font-semibold text-gray-900">Anki Sync</h2>
-          <p className="mt-1 text-sm text-gray-600">
-            Export your vocabulary to Anki as flashcards, or import words from an existing Anki deck. Requires Anki to
-            be open with the{" "}
-            <a
-              href="https://ankiweb.net/shared/info/2055492159"
-              target="_blank"
-              rel="noreferrer"
-              className="text-[#55F] underline"
-            >
-              AnkiConnect
-            </a>{" "}
-            plugin installed.
-          </p>
-
-          {ankiMessage && (
-            <div
-              className={`mt-4 rounded-lg border px-4 py-3 text-sm ${
-                ankiMessage.type === "success"
-                  ? "border-green-200 bg-green-50 text-green-700"
-                  : "border-red-200 bg-red-50 text-red-700"
-              }`}
-            >
-              {ankiMessage.text}
-            </div>
-          )}
-
-          <div className="mt-4 grid gap-4 md:grid-cols-2">
-            <div className="rounded-lg border border-gray-100 bg-gray-50 p-4">
-              <h3 className="text-sm font-semibold text-gray-800">Export to Anki</h3>
-              <p className="mt-1 text-xs text-gray-500">
-                Pushes your {vocab.length} known word(s) into an Anki deck as flashcards (Front: word, Back: meaning).
-              </p>
-              <div className="mt-3 flex flex-col gap-2">
+          {/* vocab table */}
+          <div className="min-w-0 flex-1 rounded-xl border border-gray-200 bg-white p-6 shadow-sm">
+            <h1 className="text-xl font-semibold text-gray-900">Known Vocabulary</h1>
+            <div className="mt-6 flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
+              <div className="flex flex-1 flex-col gap-2 md:flex-row md:items-center">
                 <input
-                  value={ankiExportDeck}
-                  onChange={(e) => setAnkiExportDeck(e.target.value)}
-                  placeholder="Deck name"
-                  className="rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900 focus:border-[#55F] focus:outline-none"
+                  value={search}
+                  onChange={(e) => { setSearch(e.target.value); setCurrentPage(1) }}
+                  placeholder="Search by word or meaning"
+                  className="w-full rounded-lg border border-gray-300 bg-white px-4 py-2 text-sm text-gray-900 focus:border-[#55F] focus:outline-none md:max-w-sm"
                 />
-                <button
-                  type="button"
-                  onClick={handleExportToAnki}
-                  disabled={exportingAnki || vocab.length === 0}
-                  className="rounded-full border border-[#55F] bg-[#55F] px-4 py-2 text-sm font-semibold text-white hover:bg-[#44E] disabled:cursor-not-allowed disabled:opacity-50"
-                >
-                  {exportingAnki ? "Exporting..." : "Export to Anki"}
-                </button>
-              </div>
-            </div>
-
-            <div className="rounded-lg border border-gray-100 bg-gray-50 p-4">
-              <h3 className="text-sm font-semibold text-gray-800">Import from Anki</h3>
-              <p className="mt-1 text-xs text-gray-500">
-                Pulls the front field of each note from an Anki deck into your known vocabulary list.
-              </p>
-              <div className="mt-3 flex flex-col gap-2">
-                {ankiDecks.length === 0 ? (
+                <div className="flex items-center gap-2">
+                  <select
+                    value={jlptLevel}
+                    onChange={(e) => setJlptLevel(e.target.value)}
+                    className="rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900 focus:border-[#55F] focus:outline-none"
+                  >
+                    <option value="N5">JLPT N5</option>
+                    <option value="N4">JLPT N4</option>
+                    <option value="N3">JLPT N3</option>
+                    <option value="N2">JLPT N2</option>
+                    <option value="N1">JLPT N1</option>
+                  </select>
                   <button
                     type="button"
-                    onClick={handleLoadAnkiDecks}
-                    disabled={loadingAnkiDecks}
-                    className="rounded-full border border-gray-300 bg-white px-4 py-2 text-sm font-semibold text-gray-700 hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-50"
+                    onClick={handleImport}
+                    disabled={importing}
+                    className="rounded-full border border-[#55F] bg-[#55F] px-4 py-2 text-sm font-semibold text-white hover:bg-[#44E] disabled:cursor-not-allowed disabled:opacity-50"
                   >
-                    {loadingAnkiDecks ? "Loading decks..." : "Load Anki decks"}
+                    {importing ? "Importing..." : "Import JLPT list"}
                   </button>
-                ) : (
-                  <>
-                    <select
-                      value={selectedAnkiDeck}
-                      onChange={(e) => setSelectedAnkiDeck(e.target.value)}
-                      className="rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900 focus:border-[#55F] focus:outline-none"
-                    >
-                      {ankiDecks.map((deck) => (
-                        <option key={deck} value={deck}>{deck}</option>
-                      ))}
-                    </select>
+                </div>
+              </div>
+            </div>
+
+            {isLoading ? (
+              <div className="mt-8 text-sm text-gray-600">Loading...</div>
+            ) : error ? (
+              <div className="mt-8 rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
+                {error}
+              </div>
+            ) : (
+              <div className="mt-6 overflow-x-auto">
+                <table className="w-full min-w-[520px] table-fixed border-collapse">
+                  <colgroup>
+                    <col className="w-[15%]" />
+                    <col className="w-[55%]" />
+                    <col className="w-[10%]" />
+                    <col className="w-[20%]" />
+                  </colgroup>
+                  <thead>
+                    <tr className="bg-gray-50 text-left text-xs font-medium uppercase tracking-wider text-gray-600">
+                      <th className="px-4 py-3">Word</th>
+                      <th className="px-4 py-3">Meaning</th>
+                      <th className="px-4 py-3">Grade</th>
+                      <th className="px-4 py-3">Actions</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-gray-100 text-sm text-gray-700">
+                    {paginatedVocab.map((entry) => (
+                      <tr key={entry.lemma}>
+                        <td className="px-4 py-3 font-semibold text-gray-900">{entry.lemma}</td>
+                        <td className="px-4 py-3">
+                          {editingLemma === entry.lemma ? (
+                            <input
+                              value={editMeaning}
+                              onChange={(e) => setEditMeaning(e.target.value)}
+                              className="w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900 focus:border-[#55F] focus:outline-none"
+                            />
+                          ) : (
+                            entry.meaning || "—"
+                          )}
+                        </td>
+                        <td className="px-4 py-3">
+                          {editingLemma === entry.lemma ? (
+                            <select
+                              value={editGradeLevel}
+                              onChange={(e) => setEditGradeLevel(e.target.value)}
+                              className="rounded-lg border border-gray-300 bg-white px-2 py-1 text-sm text-gray-900 focus:border-[#55F] focus:outline-none"
+                            >
+                              <option value="5">N5</option>
+                              <option value="4">N4</option>
+                              <option value="3">N3</option>
+                              <option value="2">N2</option>
+                              <option value="1">N1</option>
+                            </select>
+                          ) : (
+                            entry.grade_level ?? "—"
+                          )}
+                        </td>
+                        <td className="px-4 py-3">
+                          <div className="flex items-center gap-2">
+                            {editingLemma === entry.lemma ? (
+                              <>
+                                <button
+                                  type="button"
+                                  onClick={saveEntry}
+                                  disabled={savingLemma === entry.lemma}
+                                  className="rounded-full border border-[#55F] bg-[#55F] px-3 py-1 text-xs font-semibold text-white hover:bg-[#44E] disabled:cursor-not-allowed disabled:opacity-50"
+                                >
+                                  {savingLemma === entry.lemma ? "Saving..." : "Save"}
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={cancelEditing}
+                                  className="rounded-full border border-gray-300 bg-white px-3 py-1 text-xs font-semibold text-gray-700 hover:bg-gray-50"
+                                >
+                                  Cancel
+                                </button>
+                              </>
+                            ) : (
+                              <>
+                                <button
+                                  type="button"
+                                  onClick={() => startEditing(entry)}
+                                  className="rounded-full border border-gray-300 bg-white px-3 py-1 text-xs font-semibold text-gray-700 hover:bg-gray-50"
+                                >
+                                  Edit
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={() => removeEntry(entry)}
+                                  disabled={deletingLemma === entry.lemma}
+                                  className="rounded-full border border-red-300 bg-white px-3 py-1 text-xs font-semibold text-red-600 hover:bg-red-50 disabled:cursor-not-allowed disabled:opacity-50"
+                                >
+                                  {deletingLemma === entry.lemma ? "Removing..." : "Remove"}
+                                </button>
+                              </>
+                            )}
+                          </div>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+
+                {filteredVocab.length === 0 && (
+                  <div className="mt-6 rounded-lg border border-gray-200 bg-gray-50 px-4 py-3 text-sm text-gray-600">
+                    No known words found.
+                  </div>
+                )}
+
+                {totalPages > 1 && (
+                  <div className="mt-4 flex items-center justify-between">
                     <button
                       type="button"
-                      onClick={handleImportFromAnki}
-                      disabled={importingAnki || !selectedAnkiDeck}
-                      className="rounded-full border border-[#55F] bg-[#55F] px-4 py-2 text-sm font-semibold text-white hover:bg-[#44E] disabled:cursor-not-allowed disabled:opacity-50"
+                      onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
+                      disabled={currentPage === 1}
+                      className="rounded-full border border-gray-300 bg-white px-4 py-2 text-sm font-semibold text-gray-700 hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-40"
                     >
-                      {importingAnki ? "Importing..." : "Import from Anki"}
+                      Previous
                     </button>
-                  </>
+                    <span className="text-sm text-gray-600">
+                      Page {currentPage} of {totalPages} ({filteredVocab.length} words)
+                    </span>
+                    <button
+                      type="button"
+                      onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
+                      disabled={currentPage === totalPages}
+                      className="rounded-full border border-gray-300 bg-white px-4 py-2 text-sm font-semibold text-gray-700 hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-40"
+                    >
+                      Next
+                    </button>
+                  </div>
                 )}
               </div>
-            </div>
+            )}
           </div>
-        </div>
-        )}
-          <div className="mt-6 flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
-            <div className="flex flex-1 flex-col gap-2 md:flex-row md:items-center">
-              <input
-                value={search}
-                onChange={(e) => setSearch(e.target.value)}
-                placeholder="Search by word or meaning"
-                className="w-full rounded-lg border border-gray-300 bg-white px-4 py-2 text-sm text-gray-900 focus:border-[#55F] focus:outline-none md:max-w-sm"
-              />
-              <div className="flex items-center gap-2">
-                <select
-                  value={jlptLevel}
-                  onChange={(e) => setJlptLevel(e.target.value)}
-                  className="rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900 focus:border-[#55F] focus:outline-none"
-                >
-                  <option value="N5">JLPT N5</option>
-                  <option value="N4">JLPT N4</option>
-                  <option value="N3">JLPT N3</option>
-                  <option value="N2">JLPT N2</option>
-                  <option value="N1">JLPT N1</option>
-                </select>
-                <button
-                  type="button"
-                  onClick={handleImport}
-                  disabled={importing}
-                  className="rounded-full border border-[#55F] bg-[#55F] px-4 py-2 text-sm font-semibold text-white hover:bg-[#44E] disabled:cursor-not-allowed disabled:opacity-50"
-                >
-                  {importing ? "Importing..." : "Import JLPT list"}
-                </button>
+
+          {/* anki sync */}
+          <div className="w-full shrink-0 lg:w-80">
+            {isMobile ? (
+              <div className="rounded-xl border border-gray-200 bg-gray-50 p-6">
+                <h2 className="text-lg font-semibold text-gray-900">Anki Sync</h2>
+                <p className="mt-2 text-sm text-gray-500">
+                  Anki Sync is not available on mobile. Please use a desktop browser with Anki open.
+                </p>
               </div>
-            </div>
+            ) : (
+              <div className="rounded-xl border border-gray-200 bg-white p-6 shadow-sm">
+                <h2 className="text-lg font-semibold text-gray-900">Anki Sync</h2>
+                <p className="mt-1 text-sm text-gray-600">
+                  Export your vocabulary to Anki as flashcards, or import words from an existing Anki deck. Requires Anki to
+                  be open with the{" "}
+                  <a
+                    href="https://ankiweb.net/shared/info/2055492159"
+                    target="_blank"
+                    rel="noreferrer"
+                    className="text-[#55F] underline"
+                  >
+                    AnkiConnect
+                  </a>{" "}
+                  plugin installed.
+                </p>
+
+                {ankiMessage && (
+                  <div
+                    className={`mt-4 rounded-lg border px-4 py-3 text-sm ${
+                      ankiMessage.type === "success"
+                        ? "border-green-200 bg-green-50 text-green-700"
+                        : "border-red-200 bg-red-50 text-red-700"
+                    }`}
+                  >
+                    {ankiMessage.text}
+                  </div>
+                )}
+
+                <div className="mt-4 flex flex-col gap-4">
+                  <div className="rounded-lg border border-gray-100 bg-gray-50 p-4">
+                    <h3 className="text-sm font-semibold text-gray-800">Export to Anki</h3>
+                    <p className="mt-1 text-xs text-gray-500">
+                      Pushes your {vocab.length} known word(s) into an Anki deck as flashcards (Front: word, Back: meaning).
+                    </p>
+                    <div className="mt-3 flex flex-col gap-2">
+                      <input
+                        value={ankiExportDeck}
+                        onChange={(e) => setAnkiExportDeck(e.target.value)}
+                        placeholder="Deck name"
+                        className="rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900 focus:border-[#55F] focus:outline-none"
+                      />
+                      <button
+                        type="button"
+                        onClick={handleExportToAnki}
+                        disabled={exportingAnki || vocab.length === 0}
+                        className="rounded-full border border-[#55F] bg-[#55F] px-4 py-2 text-sm font-semibold text-white hover:bg-[#44E] disabled:cursor-not-allowed disabled:opacity-50"
+                      >
+                        {exportingAnki ? "Exporting..." : "Export to Anki"}
+                      </button>
+                    </div>
+                  </div>
+
+                  <div className="rounded-lg border border-gray-100 bg-gray-50 p-4">
+                    <h3 className="text-sm font-semibold text-gray-800">Import from Anki</h3>
+                    <p className="mt-1 text-xs text-gray-500">
+                      Pulls the front field of each note from an Anki deck into your known vocabulary list.
+                    </p>
+                    <div className="mt-3 flex flex-col gap-2">
+                      {ankiDecks.length === 0 ? (
+                        <button
+                          type="button"
+                          onClick={handleLoadAnkiDecks}
+                          disabled={loadingAnkiDecks}
+                          className="rounded-full border border-gray-300 bg-white px-4 py-2 text-sm font-semibold text-gray-700 hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-50"
+                        >
+                          {loadingAnkiDecks ? "Loading decks..." : "Load Anki decks"}
+                        </button>
+                      ) : (
+                        <>
+                          <select
+                            value={selectedAnkiDeck}
+                            onChange={(e) => setSelectedAnkiDeck(e.target.value)}
+                            className="rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900 focus:border-[#55F] focus:outline-none"
+                          >
+                            {ankiDecks.map((deck) => (
+                              <option key={deck} value={deck}>{deck}</option>
+                            ))}
+                          </select>
+                          <button
+                            type="button"
+                            onClick={handleImportFromAnki}
+                            disabled={importingAnki || !selectedAnkiDeck}
+                            className="rounded-full border border-[#55F] bg-[#55F] px-4 py-2 text-sm font-semibold text-white hover:bg-[#44E] disabled:cursor-not-allowed disabled:opacity-50"
+                          >
+                            {importingAnki ? "Importing..." : "Import from Anki"}
+                          </button>
+                        </>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              </div>
+            )}
           </div>
 
-          {isLoading ? (
-            <div className="mt-8 text-sm text-gray-600">Loading...</div>
-          ) : error ? (
-            <div className="mt-8 rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
-              {error}
-            </div>
-          ) : (
-            <div className="mt-6 overflow-x-auto">
-              <table className="w-full min-w-[520px] table-auto border-collapse">
-                <thead>
-                  <tr className="bg-gray-50 text-left text-xs font-medium uppercase tracking-wider text-gray-600">
-                    <th className="px-4 py-3">Word</th>
-                    <th className="px-4 py-3">Meaning</th>
-                    <th className="px-4 py-3">Grade</th>
-                    <th className="px-4 py-3">Actions</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-gray-100 text-sm text-gray-700">
-                  {filteredVocab.map((entry) => (
-                    <tr key={entry.lemma}>
-                      <td className="px-4 py-3 font-semibold text-gray-900">{entry.lemma}</td>
-                      <td className="px-4 py-3">
-                        {editingLemma === entry.lemma ? (
-                          <input
-                            value={editMeaning}
-                            onChange={(e) => setEditMeaning(e.target.value)}
-                            className="w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900 focus:border-[#55F] focus:outline-none"
-                          />
-                        ) : (
-                          entry.meaning || "—"
-                        )}
-                      </td>
-                      <td className="px-4 py-3">
-                        {editingLemma === entry.lemma ? (
-                          <select
-                            value={editGradeLevel}
-                            onChange={(e) => setEditGradeLevel(e.target.value)}
-                            className="rounded-lg border border-gray-300 bg-white px-2 py-1 text-sm text-gray-900 focus:border-[#55F] focus:outline-none"
-                          >
-                            <option value="5">N5</option>
-                            <option value="4">N4</option>
-                            <option value="3">N3</option>
-                            <option value="2">N2</option>
-                            <option value="1">N1</option>
-                          </select>
-                        ) : (
-                          entry.grade_level ?? "—"
-                        )}
-                      </td>
-                      <td className="px-4 py-3">
-                        <div className="flex items-center gap-2">
-                          {editingLemma === entry.lemma ? (
-                            <>
-                              <button
-                                type="button"
-                                onClick={saveEntry}
-                                disabled={savingLemma === entry.lemma}
-                                className="rounded-full border border-[#55F] bg-[#55F] px-3 py-1 text-xs font-semibold text-white hover:bg-[#44E] disabled:cursor-not-allowed disabled:opacity-50"
-                              >
-                                {savingLemma === entry.lemma ? "Saving..." : "Save"}
-                              </button>
-                              <button
-                                type="button"
-                                onClick={cancelEditing}
-                                className="rounded-full border border-gray-300 bg-white px-3 py-1 text-xs font-semibold text-gray-700 hover:bg-gray-50"
-                              >
-                                Cancel
-                              </button>
-                            </>
-                          ) : (
-                            <>
-                              <button
-                                type="button"
-                                onClick={() => startEditing(entry)}
-                                className="rounded-full border border-gray-300 bg-white px-3 py-1 text-xs font-semibold text-gray-700 hover:bg-gray-50"
-                              >
-                                Edit
-                              </button>
-                              <button
-                                type="button"
-                                onClick={() => removeEntry(entry)}
-                                disabled={deletingLemma === entry.lemma}
-                                className="rounded-full border border-red-300 bg-white px-3 py-1 text-xs font-semibold text-red-600 hover:bg-red-50 disabled:cursor-not-allowed disabled:opacity-50"
-                              >
-                                {deletingLemma === entry.lemma ? "Removing..." : "Remove"}
-                              </button>
-                            </>
-                          )}
-                        </div>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-
-              {filteredVocab.length === 0 && (
-                <div className="mt-6 rounded-lg border border-gray-200 bg-gray-50 px-4 py-3 text-sm text-gray-600">
-                  No known words found.
-                </div>
-              )}
-            </div>
-          )}
         </div>
       </section>
     </Layout>
