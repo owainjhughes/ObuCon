@@ -165,6 +165,7 @@ func (r *Repository) GetKnownLemmasWithDictionaryVariants(ctx context.Context, u
 
 type VocabEntry struct {
 	Lemma      string `json:"lemma"`
+	Hiragana   string `json:"hiragana"`
 	GradeLevel *int   `json:"grade_level"`
 	Meaning    string `json:"meaning"`
 }
@@ -176,7 +177,7 @@ func (r *Repository) ListKnownWordsWithMeaning(ctx context.Context, userID uint,
 	case "ja":
 		err := r.db.WithContext(ctx).
 			Table("known_words").
-			Select("known_words.lemma, known_words.grade_level, coalesce(nullif(known_words.metadata->>'meaning', ''), japanese_dictionary.meaning, '') AS meaning").
+			Select("known_words.lemma, coalesce(japanese_dictionary.hiragana, '') AS hiragana, known_words.grade_level, coalesce(nullif(known_words.metadata->>'meaning', ''), japanese_dictionary.meaning, '') AS meaning").
 			Joins("LEFT JOIN japanese_dictionary ON known_words.lemma = japanese_dictionary.kanji OR known_words.lemma = japanese_dictionary.hiragana").
 			Where("known_words.user_id = ? AND known_words.language = ?", userID, language).
 			Order("known_words.created_at desc").
@@ -255,6 +256,30 @@ type ReviewWord struct {
 	Hiragana  string `json:"hiragana"`
 	Meaning   string `json:"meaning"`
 	JLPTLevel *int   `json:"jlpt_level"`
+}
+
+type DictionaryEntry struct {
+	Kanji     string `json:"kanji"`
+	Hiragana  string `json:"hiragana"`
+	Meaning   string `json:"meaning"`
+	JLPTLevel *int   `json:"jlpt_level"`
+}
+
+func (r *Repository) ListDictionary(ctx context.Context, language string) ([]DictionaryEntry, error) {
+	switch language {
+	case "ja":
+		var entries []DictionaryEntry
+		err := r.db.WithContext(ctx).
+			Model(&models.JapaneseDictionary{}).
+			Select("kanji, hiragana, meaning, jlpt_level").
+			Order("jlpt_level DESC NULLS LAST, kanji").
+			Find(&entries).Error
+		if err != nil {
+			return nil, err
+		}
+		return entries, nil
+	}
+	return nil, nil
 }
 
 func (r *Repository) GetDictionaryEntries(ctx context.Context, language string, lemmas []string) ([]ReviewWord, error) {

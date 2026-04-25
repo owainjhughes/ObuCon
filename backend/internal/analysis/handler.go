@@ -217,6 +217,23 @@ func (h *AnalysisHandler) RemoveKnownWord(c *gin.Context) {
 	c.Status(http.StatusNoContent)
 }
 
+func (h *AnalysisHandler) ListDictionary(c *gin.Context) {
+	language := c.DefaultQuery("language", "ja")
+
+	if len(language) != 2 {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "language must be a 2-character code"})
+		return
+	}
+
+	entries, err := h.analysisService.ListDictionary(c.Request.Context(), language)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{"entries": entries})
+}
+
 func (h *AnalysisHandler) GetReviewWords(c *gin.Context) {
 	lemmasParam := strings.TrimSpace(c.Query("lemmas"))
 	language := strings.TrimSpace(c.DefaultQuery("language", "ja"))

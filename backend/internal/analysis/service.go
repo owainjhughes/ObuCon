@@ -217,6 +217,10 @@ func (s *Service) GetReviewWords(ctx context.Context, language string, lemmas []
 	return s.repo.GetDictionaryEntries(ctx, language, lemmas)
 }
 
+func (s *Service) ListDictionary(ctx context.Context, language string) ([]DictionaryEntry, error) {
+	return s.repo.ListDictionary(ctx, language)
+}
+
 func uniqueLemmas(tokens []ja.Token) []string {
 	seen := make(map[string]struct{}, len(tokens)*2)
 	lemmas := make([]string, 0, len(tokens)*2)
