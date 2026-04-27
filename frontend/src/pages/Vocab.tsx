@@ -4,6 +4,7 @@ import Pagination from "../components/Pagination"
 import { apiClient } from "../api/client"
 import { getApiErrorMessage } from "../api/errors"
 import { getAnkiDeckNames, exportVocabToAnki, importVocabFromAnki } from "../api/ankiConnect"
+import { getCached, setCached } from "../api/cache"
 
 interface VocabEntry {
   lemma: string
@@ -31,8 +32,9 @@ function JlptBadge({ level }: { level: number | null | undefined }) {
 }
 
 export default function Vocab() {
-  const [vocab, setVocab] = useState<VocabEntry[]>([])
-  const [isLoading, setIsLoading] = useState(true)
+  const cached = getCached<VocabEntry[]>("vocab")
+  const [vocab, setVocab] = useState<VocabEntry[]>(cached ?? [])
+  const [isLoading, setIsLoading] = useState(!cached)
   const [error, setError] = useState<string | null>(null)
   const [search, setSearch] = useState("")
   const [jlptFilter, setJlptFilter] = useState<string>("all")
@@ -58,12 +60,14 @@ export default function Vocab() {
   const [ankiMessage, setAnkiMessage] = useState<{ text: string; type: "success" | "error" } | null>(null)
 
   const loadVocab = async () => {
-    setIsLoading(true)
+    if (!getCached("vocab")) setIsLoading(true)
     setError(null)
 
     try {
       const response = await apiClient.get("/vocab")
-      setVocab(response.data.vocab || [])
+      const data: VocabEntry[] = response.data.vocab || []
+      setCached("vocab", data)
+      setVocab(data)
     } catch (err: unknown) {
       setError(getApiErrorMessage(err, "Failed to load vocabulary"))
     } finally {
@@ -290,9 +294,7 @@ export default function Vocab() {
             )}
           </div>
 
-          {isLoading ? (
-            <div className="mt-8 text-sm text-gray-600">Loading...</div>
-          ) : error ? (
+          {isLoading ? null : error ? (
             <div className="mt-8 rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
               {error}
             </div>

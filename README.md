@@ -28,9 +28,7 @@ In backend:
 go run cmd/server/main.go
 ```
 
-Or just 
+Or just run the dev powershell script (Windows only)
 ```
-make dev
+./dev.ps1
 ```
-
-in software

@@ -3,6 +3,7 @@ import Layout from "../components/Layout"
 import Pagination from "../components/Pagination"
 import { apiClient } from "../api/client"
 import { getApiErrorMessage } from "../api/errors"
+import { getCached, setCached } from "../api/cache"
 
 interface DictionaryEntry {
   kanji: string
@@ -32,8 +33,9 @@ function JlptBadge({ level }: { level: number | null }) {
 }
 
 export default function Dictionary() {
-  const [entries, setEntries] = useState<DictionaryEntry[]>([])
-  const [isLoading, setIsLoading] = useState(true)
+  const cached = getCached<DictionaryEntry[]>("dictionary")
+  const [entries, setEntries] = useState<DictionaryEntry[]>(cached ?? [])
+  const [isLoading, setIsLoading] = useState(!cached)
   const [error, setError] = useState<string | null>(null)
   const [search, setSearch] = useState("")
   const [jlptFilter, setJlptFilter] = useState<string>("all")
@@ -41,11 +43,13 @@ export default function Dictionary() {
 
   useEffect(() => {
     const load = async () => {
-      setIsLoading(true)
+      if (!getCached("dictionary")) setIsLoading(true)
       setError(null)
       try {
         const response = await apiClient.get("/dictionary", { params: { language: "ja" } })
-        setEntries(response.data.entries || [])
+        const data: DictionaryEntry[] = response.data.entries || []
+        setCached("dictionary", data)
+        setEntries(data)
       } catch (err: unknown) {
         setError(getApiErrorMessage(err, "Failed to load dictionary"))
       } finally {
@@ -100,9 +104,7 @@ export default function Dictionary() {
             </select>
           </div>
 
-          {isLoading ? (
-            <div className="mt-8 text-sm text-gray-600">Loading...</div>
-          ) : error ? (
+          {isLoading ? null : error ? (
             <div className="mt-8 rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
               {error}
             </div>
