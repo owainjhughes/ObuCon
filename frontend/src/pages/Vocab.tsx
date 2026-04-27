@@ -31,7 +31,7 @@ export default function Vocab() {
 
   const [isMobile] = useState(() => window.matchMedia("(pointer: coarse)").matches)
   const [showAnkiModal, setShowAnkiModal] = useState(false)
-  const [ankiExportDeck, setAnkiExportDeck] = useState("GinAPI Japanese")
+  const [ankiExportDeck, setAnkiExportDeck] = useState("ObuCon Japanese")
   const [ankiDecks, setAnkiDecks] = useState<string[]>([])
   const [selectedAnkiDeck, setSelectedAnkiDeck] = useState("")
   const [exportingAnki, setExportingAnki] = useState(false)
