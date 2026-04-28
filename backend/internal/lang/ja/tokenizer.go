@@ -11,11 +11,12 @@ import (
 )
 
 type Token struct {
-	Surface      string `json:"surface"`
-	Lemma        string `json:"lemma"`
-	PartOfSpeech string `json:"pos"`
-	IsKatakana   bool   `json:"is_katakana"`
-	IsRoman      bool   `json:"is_roman"`
+	Surface       string `json:"surface"`
+	Lemma         string `json:"lemma"`
+	PartOfSpeech  string `json:"pos"`
+	IsKatakana    bool   `json:"is_katakana"`
+	IsRoman       bool   `json:"is_roman"`
+	IsNonJapanese bool   `json:"is_non_japanese"`
 }
 
 type Tokenizer struct {
@@ -51,6 +52,21 @@ func isKatakanaToken(text string) bool {
 		}
 	}
 	return hasKatakana
+}
+
+func containsJapaneseChar(text string) bool {
+	for _, r := range text {
+		switch {
+		case r == 0x3005, // 々 kanji iteration mark
+			r >= 0x3040 && r <= 0x309F, // hiragana
+			r >= 0x30A0 && r <= 0x30FF, // katakana (incl. ・ and ー)
+			r >= 0x3400 && r <= 0x4DBF, // CJK Extension A
+			r >= 0x4E00 && r <= 0x9FFF, // CJK Unified Ideographs
+			r >= 0xFF65 && r <= 0xFF9F: // halfwidth katakana
+			return true
+		}
+	}
+	return false
 }
 
 func isRomanToken(text string) bool {
@@ -116,11 +132,12 @@ func (tok *Tokenizer) Tokenize(text string) ([]Token, error) {
 
 		if t.Surface != "" {
 			result = append(result, Token{
-				Surface:      t.Surface,
-				Lemma:        lemma,
-				PartOfSpeech: pos,
-				IsKatakana:   isKatakanaToken(t.Surface),
-				IsRoman:      isRomanToken(t.Surface),
+				Surface:       t.Surface,
+				Lemma:         lemma,
+				PartOfSpeech:  pos,
+				IsKatakana:    isKatakanaToken(t.Surface),
+				IsRoman:       isRomanToken(t.Surface),
+				IsNonJapanese: !containsJapaneseChar(t.Surface) || strings.Contains(pos, "記号"),
 			})
 		}
 	}

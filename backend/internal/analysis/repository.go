@@ -342,6 +342,47 @@ func (r *Repository) GetDictionaryEntries(ctx context.Context, language string, 
 	return nil, nil
 }
 
+func (r *Repository) GetDictionaryMeanings(ctx context.Context, language string, lemmas []string) (map[string]string, error) {
+	meanings := make(map[string]string)
+	if len(lemmas) == 0 {
+		return meanings, nil
+	}
+
+	switch language {
+	case "ja":
+		type dictionaryRow struct {
+			Kanji    string `gorm:"column:kanji"`
+			Hiragana string `gorm:"column:hiragana"`
+			Meaning  string `gorm:"column:meaning"`
+		}
+
+		var rows []dictionaryRow
+		err := r.db.WithContext(ctx).
+			Model(&models.JapaneseDictionary{}).
+			Select("kanji, hiragana, meaning").
+			Where("meaning <> '' AND (kanji IN ? OR hiragana IN ?)", lemmas, lemmas).
+			Find(&rows).Error
+		if err != nil {
+			return nil, err
+		}
+
+		for _, row := range rows {
+			if row.Kanji != "" {
+				if _, ok := meanings[row.Kanji]; !ok {
+					meanings[row.Kanji] = row.Meaning
+				}
+			}
+			if row.Hiragana != "" {
+				if _, ok := meanings[row.Hiragana]; !ok {
+					meanings[row.Hiragana] = row.Meaning
+				}
+			}
+		}
+	}
+
+	return meanings, nil
+}
+
 func (r *Repository) GetDictionaryGradeLevels(ctx context.Context, language string, lemmas []string) (map[string]int, error) {
 	levels := make(map[string]int)
 	if len(lemmas) == 0 {

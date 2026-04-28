@@ -10,6 +10,8 @@ interface Token {
   grade_level?: number | null
   is_katakana?: boolean
   is_roman?: boolean
+  is_non_japanese?: boolean
+  meaning?: string
 }
 
 interface AnalysisOutputProps {
@@ -55,8 +57,25 @@ function isAuxiliary(token: Token) {
   return token.pos.includes('助動詞') || token.pos.includes('動詞 非自立')
 }
 
-function combineTokensForDisplay(tokens: Token[]) {
-  const combined: Array<{ surface: string; is_known: boolean; grade_level?: number | null; is_katakana?: boolean; is_roman?: boolean }> = []
+function isNonJapanese(token: { is_non_japanese?: boolean; is_roman?: boolean; pos: string }) {
+  if (token.is_non_japanese != null) return token.is_non_japanese
+  return Boolean(token.is_roman) || token.pos.includes('記号')
+}
+
+interface DisplayToken {
+  surface: string
+  lemma: string
+  pos: string
+  is_known: boolean
+  grade_level?: number | null
+  is_katakana?: boolean
+  is_roman?: boolean
+  is_non_japanese?: boolean
+  meaning?: string
+}
+
+function combineTokensForDisplay(tokens: Token[]): DisplayToken[] {
+  const combined: DisplayToken[] = []
 
   for (let i = 0; i < tokens.length; i++) {
     const token = tokens[i]
@@ -67,12 +86,32 @@ function combineTokensForDisplay(tokens: Token[]) {
       const gradeLevel = token.grade_level ?? tokens[i + 1].grade_level
       const isKatakana = token.is_katakana || tokens[i + 1].is_katakana
       const isRoman = token.is_roman || tokens[i + 1].is_roman
-      combined.push({ surface: combinedSurface, is_known: combinedKnown, grade_level: gradeLevel, is_katakana: isKatakana, is_roman: isRoman })
+      combined.push({
+        surface: combinedSurface,
+        lemma: token.lemma,
+        pos: token.pos,
+        is_known: combinedKnown,
+        grade_level: gradeLevel,
+        is_katakana: isKatakana,
+        is_roman: isRoman,
+        is_non_japanese: token.is_non_japanese || tokens[i + 1].is_non_japanese,
+        meaning: token.meaning || tokens[i + 1].meaning,
+      })
       i += 1
       continue
     }
 
-    combined.push({ surface: token.surface, is_known: token.is_known, grade_level: token.grade_level, is_katakana: token.is_katakana, is_roman: token.is_roman })
+    combined.push({
+      surface: token.surface,
+      lemma: token.lemma,
+      pos: token.pos,
+      is_known: token.is_known,
+      grade_level: token.grade_level,
+      is_katakana: token.is_katakana,
+      is_roman: token.is_roman,
+      is_non_japanese: token.is_non_japanese,
+      meaning: token.meaning,
+    })
   }
 
   return combined
@@ -138,12 +177,18 @@ export default function AnalysisOutput({ tokens, missing, onReset }: AnalysisOut
     localTokens.filter((t) => !t.is_known && t.grade_level != null).map((t) => t.lemma)
   )].length
 
+  const meaningByLemma = React.useMemo(() => {
+    const map: Record<string, string> = {}
+    for (const t of localTokens) {
+      if (t.meaning && !map[t.lemma]) map[t.lemma] = t.meaning
+    }
+    return map
+  }, [localTokens])
+
   const displayTokens = combineTokensForDisplay(localTokens)
   
-  // Filter out roman tokens for statistics
-  const scorableTokens = localTokens.filter((t) => !t.is_roman)
-  // For pie chart, include all non-roman tokens (both native and katakana)
-  const pieTokens = localTokens.filter((t) => !t.is_roman)
+  const scorableTokens = localTokens.filter((t) => !isNonJapanese(t))
+  const pieTokens = localTokens.filter((t) => !isNonJapanese(t))
   
   const total = scorableTokens.length
   const knownCount = scorableTokens.filter((t) => t.is_known).length
@@ -194,17 +239,27 @@ export default function AnalysisOutput({ tokens, missing, onReset }: AnalysisOut
           <div className="text-base leading-loose">
             {displayTokens.map((token, idx) => {
               let className = `inline font-medium `
-              
-              if (token.is_roman) {
+
+              if (isNonJapanese(token)) {
                 className += 'text-gray-700'
-              } else if (token.is_katakana) {
+                return (
+                  <span key={idx} className={className}>{token.surface}</span>
+                )
+              }
+
+              if (token.is_katakana) {
                 if (!token.is_known) className += 'bg-rose-50 text-rose-700 border-b border-rose-300'
               } else {
                 if (!token.is_known) className += 'bg-rose-100 text-rose-800'
               }
 
               return (
-                <span key={idx} className={className}>{token.surface}</span>
+                <span key={idx} className="group relative inline-block">
+                  <span className={className}>{token.surface}</span>
+                  <span className="pointer-events-none absolute bottom-full left-1/2 z-20 mb-1 hidden -translate-x-1/2 whitespace-nowrap rounded bg-gray-900 px-2 py-1 text-xs font-normal text-white shadow-lg group-hover:block">
+                    {token.meaning?.trim() || 'unknown meaning'}
+                  </span>
+                </span>
               )
             })}
           </div>
@@ -256,7 +311,6 @@ export default function AnalysisOutput({ tokens, missing, onReset }: AnalysisOut
                       strokeWidth="6"
                       strokeDasharray={dash}
                       strokeDashoffset={`${100 - offset}`}
-                      strokeLinecap="round"
                       transform="rotate(-90 21 21)"
                     />
                   )
@@ -300,18 +354,24 @@ export default function AnalysisOutput({ tokens, missing, onReset }: AnalysisOut
                 These words were not found in your known vocabulary or the JLPT dictionary.
               </p>
               <div className="mt-2 flex flex-wrap gap-2">
-                {localMissing.slice(0, 30).map((word) => (
-                  <button
-                    key={word}
-                    type="button"
-                    onClick={() => handleAddKnown(word)}
-                    disabled={addingByLemma[word]}
-                    title="Click to add to known vocabulary"
-                    className="rounded-full bg-rose-50 px-2.5 py-1 text-xs font-medium text-rose-700 hover:bg-rose-100 hover:text-rose-900 disabled:cursor-not-allowed disabled:opacity-50 transition-colors"
-                  >
-                    {word}
-                  </button>
-                ))}
+                {localMissing.slice(0, 30).map((word) => {
+                  const meaning = meaningByLemma[word]?.trim() || 'unknown meaning'
+                  return (
+                    <span key={word} className="group relative inline-block">
+                      <button
+                        type="button"
+                        onClick={() => handleAddKnown(word)}
+                        disabled={addingByLemma[word]}
+                        className="rounded-full bg-rose-50 px-2.5 py-1 text-xs font-medium text-rose-700 hover:bg-rose-100 hover:text-rose-900 disabled:cursor-not-allowed disabled:opacity-50 transition-colors"
+                      >
+                        {word}
+                      </button>
+                      <span className="pointer-events-none absolute bottom-full left-1/2 z-20 mb-1 hidden max-w-xs -translate-x-1/2 whitespace-nowrap rounded bg-gray-900 px-2 py-1 text-xs font-normal text-white shadow-lg group-hover:block">
+                        {meaning}
+                      </span>
+                    </span>
+                  )
+                })}
                 {missingCount > 30 && (
                   <span className="text-xs text-gray-500">+{missingCount - 30} more</span>
                 )}

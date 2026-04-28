@@ -15,13 +15,15 @@ type AnalysisResult struct {
 }
 
 type EnrichedToken struct {
-	Surface    string `json:"surface"`
-	Lemma      string `json:"lemma"`
-	POS        string `json:"pos"`
-	IsKnown    bool   `json:"is_known"`
-	GradeLevel *int   `json:"grade_level"`
-	IsKatakana bool   `json:"is_katakana"`
-	IsRoman    bool   `json:"is_roman"`
+	Surface       string `json:"surface"`
+	Lemma         string `json:"lemma"`
+	POS           string `json:"pos"`
+	IsKnown       bool   `json:"is_known"`
+	GradeLevel    *int   `json:"grade_level"`
+	IsKatakana    bool   `json:"is_katakana"`
+	IsRoman       bool   `json:"is_roman"`
+	IsNonJapanese bool   `json:"is_non_japanese"`
+	Meaning       string `json:"meaning"`
 }
 
 type Service struct {
@@ -67,8 +69,14 @@ func (s *Service) AnalyzeText(ctx context.Context, userID uint, language, text s
 		return nil, fmt.Errorf("failed to fetch dictionary grade levels: %w", err)
 	}
 
+	meanings, err := s.repo.GetDictionaryMeanings(ctx, language, lemmas)
+	if err != nil {
+		return nil, fmt.Errorf("failed to fetch dictionary meanings: %w", err)
+	}
+
 	enrichedTokens := make([]EnrichedToken, 0, len(tokens))
-	missing := make(map[string]struct{})
+	missingSeen := make(map[string]struct{})
+	missingSlice := make([]string, 0)
 
 	for _, token := range tokens {
 		var gradeLevel *int
@@ -106,28 +114,33 @@ func (s *Service) AnalyzeText(ctx context.Context, userID uint, language, text s
 
 		isKnown := isGrammarToken || knownLemmas[token.Lemma] || knownLemmas[token.Surface] || knownLemmas[baseLemma] || knownLemmas[rootLemma]
 
-		if !isKnown {
+		if !isKnown && !token.IsNonJapanese {
 			_, hasGrade := gradeLevels[token.Lemma]
 			_, hasGradeBase := gradeLevels[baseLemma]
 			if !hasGrade && !hasGradeBase {
-				missing[token.Lemma] = struct{}{}
+				if _, seen := missingSeen[token.Lemma]; !seen {
+					missingSeen[token.Lemma] = struct{}{}
+					missingSlice = append(missingSlice, token.Lemma)
+				}
 			}
 		}
 
-		enrichedTokens = append(enrichedTokens, EnrichedToken{
-			Surface:    token.Surface,
-			Lemma:      token.Lemma,
-			POS:        token.PartOfSpeech,
-			IsKnown:    isKnown,
-			GradeLevel: gradeLevel,
-			IsKatakana: token.IsKatakana,
-			IsRoman:    token.IsRoman,
-		})
-	}
+		meaning, ok := meanings[token.Lemma]
+		if !ok {
+			meaning = meanings[baseLemma]
+		}
 
-	missingSlice := make([]string, 0, len(missing))
-	for m := range missing {
-		missingSlice = append(missingSlice, m)
+		enrichedTokens = append(enrichedTokens, EnrichedToken{
+			Surface:       token.Surface,
+			Lemma:         token.Lemma,
+			POS:           token.PartOfSpeech,
+			IsKnown:       isKnown,
+			GradeLevel:    gradeLevel,
+			IsKatakana:    token.IsKatakana,
+			IsRoman:       token.IsRoman,
+			IsNonJapanese: token.IsNonJapanese,
+			Meaning:       meaning,
+		})
 	}
 
 	return &AnalysisResult{
