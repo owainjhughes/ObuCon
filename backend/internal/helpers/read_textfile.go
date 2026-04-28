@@ -172,7 +172,61 @@ func extractPdfText(data []byte) (string, error) {
 		text.WriteString(pageText)
 	}
 
-	return text.String(), nil
+	// ledongthuc/pdf emits a literal '\n' at every PDF "BT" (Begin Text)
+	// operator, regardless of whether the operator marks a real line break
+	// or just a layout-driven text-object boundary. For Japanese, those
+	// artificial breaks fragment conjugations during morphological analysis,
+	// so we strip newlines that fall between two CJK characters.
+	return stripCJKInternalNewlines(text.String()), nil
+}
+
+// isCJKRune reports whether r belongs to the script ranges used by the
+// Japanese tokenizer (kanji, hiragana, katakana, halfwidth katakana, and
+// the iteration mark 々). Mirrors the ranges in lang/ja.containsJapaneseChar.
+func isCJKRune(r rune) bool {
+	switch {
+	case r == 0x3005,
+		r >= 0x3040 && r <= 0x309F,
+		r >= 0x30A0 && r <= 0x30FF,
+		r >= 0x3400 && r <= 0x4DBF,
+		r >= 0x4E00 && r <= 0x9FFF,
+		r >= 0xFF65 && r <= 0xFF9F:
+		return true
+	}
+	return false
+}
+
+func stripCJKInternalNewlines(s string) string {
+	if !strings.Contains(s, "\n") {
+		return s
+	}
+	runes := []rune(s)
+	var b strings.Builder
+	b.Grow(len(s))
+
+	for i := 0; i < len(runes); i++ {
+		r := runes[i]
+		if r != '\n' {
+			b.WriteRune(r)
+			continue
+		}
+		start := i
+		for i < len(runes) && runes[i] == '\n' {
+			i++
+		}
+		end := i
+		runLen := end - start
+		i = end - 1
+
+		if runLen == 1 && start > 0 && end < len(runes) &&
+			isCJKRune(runes[start-1]) && isCJKRune(runes[end]) {
+			continue
+		}
+		for range runLen {
+			b.WriteByte('\n')
+		}
+	}
+	return b.String()
 }
 
 func normalizeTextForAnalysis(text string) string {

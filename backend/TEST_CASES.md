@@ -1,6 +1,6 @@
 # Test Cases Overview
 
-All 41 tests passed on 2026-04-25.
+All 43 tests passed on 2026-04-28.
 
 ---
 
@@ -78,6 +78,8 @@ Tests the file upload text extraction pipeline — normalising line endings and 
 | `TestExtractTextFromFileHeader_PlainText` | `.txt` file: filename, normalised text, and character count are correct. | PASS |
 | `TestExtractTextFromFileHeader_MarkdownAccepted` | `.md` file is accepted and content extracted. | PASS |
 | `TestExtractTextFromFileHeader_NonUTF8Rejected` | Non-UTF-8 bytes return a "UTF-8" error. | PASS |
+| `TestStripCJKInternalNewlines` | 10 cases: removes single `\n` between CJK runes (kanji/hiragana/katakana), preserves ASCII-internal, paragraph (double) breaks, edge newlines, and CJK/ASCII boundaries. | PASS |
+| `TestExtractTextFromFileHeader_PdfTokenParity` | End-to-end check on `tenyomi1.{txt,md,docx,pdf}`: PDF token count must be within ±5 of the TXT count after extraction + Kagome tokenisation. Regression guard for the `BT`-operator newline fragmentation. | PASS |
 
 ---
 
