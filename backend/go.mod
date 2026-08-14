@@ -3,6 +3,7 @@ module obucon
 go 1.25.6
 
 require (
+	github.com/DATA-DOG/go-sqlmock v1.5.2
 	github.com/gin-contrib/cors v1.7.6
 	github.com/gin-gonic/gin v1.11.0
 	github.com/golang-jwt/jwt/v5 v5.3.1
@@ -11,8 +12,6 @@ require (
 	gorm.io/driver/postgres v1.6.0
 	gorm.io/gorm v1.31.1
 )
-
-require github.com/DATA-DOG/go-sqlmock v1.5.2
 
 require (
 	github.com/aws/aws-sdk-go-v2 v1.41.5

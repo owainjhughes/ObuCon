@@ -59,28 +59,13 @@ func TestNormalizeVocabularyImportEntriesTrimsAndUsesLastDuplicate(t *testing.T)
 	}
 }
 
-func TestNormalizeVocabularyImportEntriesRejectsInvalidBatch(t *testing.T) {
-	invalidLevel := 6
-	tests := []struct {
-		name    string
-		entries []VocabularyImportEntry
-	}{
-		{name: "empty", entries: nil},
-		{name: "blank lemma", entries: []VocabularyImportEntry{{Lemma: "  "}}},
-		{name: "invalid JLPT", entries: []VocabularyImportEntry{{Lemma: "食べる", JLPTLevel: &invalidLevel}}},
-		{name: "too many", entries: make([]VocabularyImportEntry, 501)},
-	}
-
-	for _, test := range tests {
-		t.Run(test.name, func(t *testing.T) {
-			if _, err := normalizeVocabularyImportEntries(test.entries); err == nil {
-				t.Fatal("expected validation error")
-			}
-		})
+func TestNormalizeVocabularyImportEntriesRejectsBlankLemma(t *testing.T) {
+	if _, err := normalizeVocabularyImportEntries([]VocabularyImportEntry{{Lemma: "  "}}); err == nil {
+		t.Fatal("expected validation error")
 	}
 }
 
-func TestDictionaryImportGradeLevelsKeepsEasiestMatchingLevel(t *testing.T) {
+func TestGetDictionaryGradeLevelsKeepsEasiestMatchingLevel(t *testing.T) {
 	repo, mock, cleanup := newSQLMockRepository(t)
 	defer cleanup()
 
@@ -90,9 +75,9 @@ func TestDictionaryImportGradeLevelsKeepsEasiestMatchingLevel(t *testing.T) {
 			AddRow("言葉", "げんよう", 5).
 			AddRow("言葉", "ことば", 3))
 
-	levels, err := dictionaryImportGradeLevels(repo.db, "ja", []VocabularyImportEntry{{Lemma: "言葉"}}, nil)
+	levels, err := repo.GetDictionaryGradeLevels(context.Background(), "ja", []string{"言葉"})
 	if err != nil {
-		t.Fatalf("dictionaryImportGradeLevels returned error: %v", err)
+		t.Fatalf("GetDictionaryGradeLevels returned error: %v", err)
 	}
 	if levels["言葉"] != 5 {
 		t.Fatalf("got JLPT N%d, want N5", levels["言葉"])
@@ -109,7 +94,7 @@ func TestImportedKnownWordPreservesFlexibleMetadataThroughPatchOnly(t *testing.T
 		Metadata: []byte(`{"frequency":2,"source":{"name":"custom"},"meaning":"old"}`),
 	}
 
-	word, changed, err := importedKnownWord(7, "ja", entry, existing, true, 0)
+	word, changed, err := importedKnownWord(7, "ja", entry, &existing, 0)
 	if err != nil {
 		t.Fatalf("importedKnownWord returned error: %v", err)
 	}
@@ -126,7 +111,7 @@ func TestImportedKnownWordPreservesFlexibleMetadataThroughPatchOnly(t *testing.T
 	}
 
 	existing.Metadata = []byte(`null`)
-	if _, _, err := importedKnownWord(7, "ja", entry, existing, true, 0); err != nil {
+	if _, _, err := importedKnownWord(7, "ja", entry, &existing, 0); err != nil {
 		t.Fatalf("JSON null metadata returned error: %v", err)
 	}
 }
@@ -148,7 +133,7 @@ func TestImportVocabularyCommitsAddedUpdatedAndSkippedEntries(t *testing.T) {
 		WillReturnRows(sqlmock.NewRows([]string{"id", "user_id", "language", "lemma", "grade_level", "status", "metadata"}).
 			AddRow(11, 7, "ja", "既知", 5, "known", []byte(`{"meaning":"old"}`)).
 			AddRow(12, 7, "ja", "同じ", 5, "known", []byte(`{"meaning":"same"}`)))
-	mock.ExpectQuery(`INSERT INTO "known_words".*jsonb_typeof\(known_words.metadata\) = 'object'`).
+	mock.ExpectQuery(`INSERT INTO "known_words".*COALESCE\(known_words.metadata, '\{\}'::jsonb\) \|\| COALESCE\(EXCLUDED.metadata, '\{\}'::jsonb\)`).
 		WillReturnRows(sqlmock.NewRows([]string{"id"}).AddRow(13).AddRow(11))
 	mock.ExpectCommit()
 
@@ -199,6 +184,22 @@ func TestImportVocabularyHandlerSeparatesValidationAndPersistenceErrors(t *testi
 		}
 		if !strings.Contains(response.Body.String(), "lemma cannot be empty") {
 			t.Fatalf("unexpected response: %s", response.Body.String())
+		}
+	})
+
+	t.Run("rejected by binding", func(t *testing.T) {
+		bodies := map[string]string{
+			"no entries":   `{"language":"ja","entries":[]}`,
+			"blank lemma":  `{"language":"ja","entries":[{"lemma":""}]}`,
+			"bad jlpt":     `{"language":"ja","entries":[{"lemma":"word","jlpt_level":6}]}`,
+			"bad language": `{"language":"jpn","entries":[{"lemma":"word"}]}`,
+		}
+		for name, body := range bodies {
+			t.Run(name, func(t *testing.T) {
+				if response := performVocabularyImportRequest(t, handler, body); response.Code != http.StatusBadRequest {
+					t.Fatalf("got status %d, want 400", response.Code)
+				}
+			})
 		}
 	})
 

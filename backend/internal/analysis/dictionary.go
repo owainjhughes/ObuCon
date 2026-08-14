@@ -3,7 +3,6 @@ package analysis
 import (
 	"context"
 	"fmt"
-	"math"
 	"net/url"
 	"strconv"
 	"strings"
@@ -17,6 +16,7 @@ import (
 const (
 	defaultDictionaryPageSize = 15
 	maxDictionaryPageSize     = 100
+	maxDictionaryPage         = 100000
 	maxDictionaryQueryRunes   = 100
 )
 
@@ -25,15 +25,14 @@ type DictionaryQuery struct {
 	JLPTLevel *int
 	Page      int
 	PageSize  int
-	Paginated bool
 }
 
 type DictionaryPage struct {
-	Entries    []DictionaryEntry
-	Page       int
-	PageSize   int
-	Total      int64
-	TotalPages int
+	Entries    []DictionaryEntry `json:"entries"`
+	Page       int               `json:"page"`
+	PageSize   int               `json:"page_size"`
+	Total      int64             `json:"total"`
+	TotalPages int               `json:"total_pages"`
 }
 
 func parseDictionaryQuery(values url.Values) (DictionaryQuery, error) {
@@ -47,18 +46,16 @@ func parseDictionaryQuery(values url.Values) (DictionaryQuery, error) {
 		return DictionaryQuery{}, fmt.Errorf("query must be at most %d characters", maxDictionaryQueryRunes)
 	}
 
-	if raw, present := values["page"]; present {
-		query.Paginated = true
-		page, err := parsePositiveQueryInt(firstValue(raw), "page", 1, math.MaxInt)
+	if raw := values.Get("page"); raw != "" {
+		page, err := parsePositiveQueryInt(raw, "page", 1, maxDictionaryPage)
 		if err != nil {
 			return DictionaryQuery{}, err
 		}
 		query.Page = page
 	}
 
-	if raw, present := values["page_size"]; present {
-		query.Paginated = true
-		pageSize, err := parsePositiveQueryInt(firstValue(raw), "page_size", 1, maxDictionaryPageSize)
+	if raw := values.Get("page_size"); raw != "" {
+		pageSize, err := parsePositiveQueryInt(raw, "page_size", 1, maxDictionaryPageSize)
 		if err != nil {
 			return DictionaryQuery{}, err
 		}
@@ -74,13 +71,6 @@ func parseDictionaryQuery(values url.Values) (DictionaryQuery, error) {
 	}
 
 	return query, nil
-}
-
-func firstValue(values []string) string {
-	if len(values) == 0 {
-		return ""
-	}
-	return values[0]
 }
 
 func parsePositiveQueryInt(raw, name string, minimum, maximum int) (int, error) {
@@ -114,7 +104,7 @@ func (r *Repository) SearchDictionary(ctx context.Context, language string, quer
 	applyFilters := func(db *gorm.DB) *gorm.DB {
 		if query.Search != "" {
 			pattern := "%" + escapeLikePattern(query.Search) + "%"
-			db = db.Where(`(kanji ILIKE ? ESCAPE '\' OR hiragana ILIKE ? ESCAPE '\' OR meaning ILIKE ? ESCAPE '\')`, pattern, pattern, pattern)
+			db = db.Where("(kanji ILIKE ? OR hiragana ILIKE ? OR meaning ILIKE ?)", pattern, pattern, pattern)
 		}
 		if query.JLPTLevel != nil {
 			db = db.Where("jlpt_level = ?", *query.JLPTLevel)
@@ -122,32 +112,22 @@ func (r *Repository) SearchDictionary(ctx context.Context, language string, quer
 		return db
 	}
 
-	if query.Paginated {
-		if err := applyFilters(r.db.WithContext(ctx).Model(&models.JapaneseDictionary{})).Count(&page.Total).Error; err != nil {
-			return nil, err
-		}
-		if page.Total > 0 {
-			page.TotalPages = int((page.Total + int64(query.PageSize) - 1) / int64(query.PageSize))
-		}
-		if page.Page > page.TotalPages {
-			page.Page = page.TotalPages
-		}
-	}
-
-	db := applyFilters(r.db.WithContext(ctx).
-		Model(&models.JapaneseDictionary{}).
-		Select("kanji, hiragana, meaning, jlpt_level")).
-		Order("jlpt_level DESC NULLS LAST, kanji, hiragana, id")
-	if query.Paginated {
-		db = db.Limit(query.PageSize).Offset((page.Page - 1) * query.PageSize)
-	}
-	if err := db.Find(&page.Entries).Error; err != nil {
+	if err := applyFilters(r.db.WithContext(ctx).Model(&models.JapaneseDictionary{})).Count(&page.Total).Error; err != nil {
 		return nil, err
 	}
-	if !query.Paginated {
-		page.Total = int64(len(page.Entries))
-		page.Page = 1
-		page.PageSize = len(page.Entries)
+	if page.Total > 0 {
+		page.TotalPages = int((page.Total + int64(query.PageSize) - 1) / int64(query.PageSize))
+	}
+
+	err := applyFilters(r.db.WithContext(ctx).
+		Model(&models.JapaneseDictionary{}).
+		Select("kanji, hiragana, meaning, jlpt_level")).
+		Order("jlpt_level DESC NULLS LAST, kanji, hiragana, id").
+		Limit(query.PageSize).
+		Offset((query.Page - 1) * query.PageSize).
+		Find(&page.Entries).Error
+	if err != nil {
+		return nil, err
 	}
 
 	return page, nil

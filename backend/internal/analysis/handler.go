@@ -51,7 +51,7 @@ type bulkVocabRequest struct {
 
 type importVocabularyRequest struct {
 	Language string                  `json:"language" binding:"required,len=2"`
-	Entries  []VocabularyImportEntry `json:"entries" binding:"required"`
+	Entries  []VocabularyImportEntry `json:"entries" binding:"required,min=1,max=500,dive"`
 }
 
 func (h *AnalysisHandler) AnalyzeText(c *gin.Context) {
@@ -181,13 +181,14 @@ func (h *AnalysisHandler) ImportVocabulary(c *gin.Context) {
 		return
 	}
 
-	result, err := h.analysisService.ImportVocabulary(c.Request.Context(), userID, req.Language, req.Entries)
+	entries, err := normalizeVocabularyImportEntries(req.Entries)
 	if err != nil {
-		var validationErr *vocabularyImportValidationError
-		if errors.As(err, &validationErr) {
-			c.JSON(http.StatusBadRequest, gin.H{"error": validationErr.Error()})
-			return
-		}
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	result, err := h.analysisService.ImportVocabulary(c.Request.Context(), userID, req.Language, entries)
+	if err != nil {
 		_ = c.Error(err)
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to import vocabulary"})
 		return
@@ -278,20 +279,12 @@ func (h *AnalysisHandler) ListDictionary(c *gin.Context) {
 
 	page, err := h.analysisService.SearchDictionary(c.Request.Context(), language, query)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		_ = c.Error(err)
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to load dictionary"})
 		return
 	}
 
-	response := gin.H{"entries": page.Entries}
-	if query.Paginated {
-		response["pagination"] = gin.H{
-			"page":        page.Page,
-			"page_size":   page.PageSize,
-			"total":       page.Total,
-			"total_pages": page.TotalPages,
-		}
-	}
-	c.JSON(http.StatusOK, response)
+	c.JSON(http.StatusOK, page)
 }
 
 func (h *AnalysisHandler) GetReviewWords(c *gin.Context) {

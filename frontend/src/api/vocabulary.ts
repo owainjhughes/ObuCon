@@ -1,35 +1,29 @@
-export interface VocabularyImportSourceEntry {
+import { apiClient } from "./client"
+
+export interface VocabularyEntry {
   lemma: string
   hiragana: string
+  grade_level?: number | null
   meaning: string
+  kind?: string
 }
 
-interface VocabularyImportEntry {
-  lemma: string
-  hiragana?: string
-  meaning?: string
+export interface VocabularyImportResult {
+  added: number
+  updated: number
+  skipped: number
 }
 
-export interface VocabularyImportPayload {
-  language: string
-  entries: VocabularyImportEntry[]
+export async function fetchVocabulary(): Promise<VocabularyEntry[]> {
+  const response = await apiClient.get("/vocab")
+  const raw: VocabularyEntry[] = response.data.vocab || []
+  const seen = new Set<string>()
+  return raw.filter((entry) => (seen.has(entry.lemma) ? false : (seen.add(entry.lemma), true)))
 }
 
-export function buildVocabularyImport(
-  entries: VocabularyImportSourceEntry[],
-  language = "ja",
-): VocabularyImportPayload {
-  return {
-    language,
-    entries: entries.map((entry) => {
-      const lemma = entry.lemma.trim()
-      const hiragana = entry.hiragana.trim()
-      const meaning = entry.meaning.trim()
-      return {
-        lemma,
-        ...(hiragana ? { hiragana } : {}),
-        ...(meaning ? { meaning } : {}),
-      }
-    }),
-  }
+export async function importVocabulary(
+  entries: Array<{ lemma: string; hiragana: string; meaning: string }>,
+): Promise<VocabularyImportResult> {
+  const response = await apiClient.post("/vocab/import", { language: "ja", entries })
+  return response.data
 }

@@ -12,7 +12,7 @@
 
 ## Global Constraints
 
-- Preserve existing unpaginated `GET /dictionary` behavior when pagination is not requested.
+- `GET /dictionary` always paginates; omitted parameters mean the first page at the default size.
 - Accept at most 500 vocabulary import entries and perform all changed writes in one transaction.
 - Treat dictionary search metacharacters literally.
 - Keep AnkiConnect browser-side.
@@ -26,7 +26,7 @@
 
 - [x] Write failing tests for validation, literal search, pagination, and ordering.
 - [x] Run the focused tests and verify the expected red state.
-- [x] Implement query parsing, service delegation, and repository queries while keeping the old list path.
+- [x] Implement query parsing, service delegation, and repository queries, replacing the old list path.
 - [x] Run focused tests until green.
 
 ### Task 2: Transactional vocabulary import
@@ -43,15 +43,15 @@
 
 **Files:** new `frontend/src/api/dictionary.ts`, `dictionary.test.ts`, `vocabulary.ts`, and `vocabulary.test.ts`.
 
-- [x] Write failing tests for paginated/new and unpaginated/old dictionary responses plus batch import payload construction.
+- [x] Write failing tests for the dictionary request parameters, the response mapping, and the batch import request.
 - [x] Run focused tests and verify the expected red state.
-- [x] Implement the pure adapters and run focused tests until green.
+- [x] Implement the API modules and run focused tests until green.
 
 ### Task 4: React migrations
 
 **Files:** `frontend/src/pages/Dictionary.tsx` and `Vocab.tsx`.
 
-- [x] Move dictionary filtering and pagination requests to the server with old-backend response compatibility.
+- [x] Move dictionary filtering and pagination requests to the server.
 - [x] Replace per-entry Anki persistence with one batch request and display server counts.
 - [x] Run frontend tests and production build.
 
