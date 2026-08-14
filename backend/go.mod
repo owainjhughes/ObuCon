@@ -12,6 +12,8 @@ require (
 	gorm.io/gorm v1.31.1
 )
 
+require github.com/DATA-DOG/go-sqlmock v1.5.2
+
 require (
 	github.com/aws/aws-sdk-go-v2 v1.41.5
 	github.com/aws/aws-sdk-go-v2/config v1.32.14

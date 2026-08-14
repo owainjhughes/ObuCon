@@ -11,6 +11,7 @@ import {
   type AnkiDeckPreview,
 } from "../api/ankiConnect"
 import { getCached, setCached } from "../api/cache"
+import { buildVocabularyImport } from "../api/vocabulary"
 
 interface VocabEntry {
   lemma: string
@@ -298,32 +299,21 @@ export default function Vocab() {
         ankiMeaningField,
         ankiHiraganaField || undefined,
       )
-      const knownLemmas = new Set(vocab.map((v) => v.lemma))
-      const newEntries = entries.filter((e) => !knownLemmas.has(e.lemma))
-      const skippedAlreadyKnown = entries.length - newEntries.length
-
-      const results = await Promise.allSettled(
-        newEntries.map((e) =>
-          apiClient.post("/vocab/known", {
-            lemma: e.lemma,
-            language: "ja",
-            meaning: e.meaning || undefined,
-            hiragana: e.hiragana || undefined,
-          }),
-        ),
-      )
-      const added = results.filter((r) => r.status === "fulfilled").length
-      const failed = results.filter((r) => r.status === "rejected").length
+      if (entries.length === 0) {
+        setAnkiMessage({ text: "No mature cards with a word were found in this deck.", type: "success" })
+        return
+      }
+      const response = await apiClient.post("/vocab/import", buildVocabularyImport(entries))
+      const added = response.data.added ?? 0
+      const updated = response.data.updated ?? 0
+      const skipped = response.data.skipped ?? 0
       await loadVocab()
       setAnkiMessage({
-        text:
-          `Imported ${added} word(s) from Anki.` +
-          (skippedAlreadyKnown > 0 ? ` Skipped ${skippedAlreadyKnown} already known.` : "") +
-          (failed > 0 ? ` ${failed} failed.` : ""),
+        text: `Imported ${added} new word(s), updated ${updated}, and skipped ${skipped} unchanged word(s).`,
         type: "success",
       })
     } catch (err: unknown) {
-      setAnkiMessage({ text: err instanceof Error ? err.message : "Import failed", type: "error" })
+      setAnkiMessage({ text: getApiErrorMessage(err, "Import failed"), type: "error" })
     } finally {
       setImportingAnki(false)
     }

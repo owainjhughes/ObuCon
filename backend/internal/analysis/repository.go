@@ -287,23 +287,6 @@ type DictionaryEntry struct {
 	JLPTLevel *int   `json:"jlpt_level"`
 }
 
-func (r *Repository) ListDictionary(ctx context.Context, language string) ([]DictionaryEntry, error) {
-	switch language {
-	case "ja":
-		var entries []DictionaryEntry
-		err := r.db.WithContext(ctx).
-			Model(&models.JapaneseDictionary{}).
-			Select("kanji, hiragana, meaning, jlpt_level").
-			Order("jlpt_level DESC NULLS LAST, kanji").
-			Find(&entries).Error
-		if err != nil {
-			return nil, err
-		}
-		return entries, nil
-	}
-	return nil, nil
-}
-
 func (r *Repository) GetDictionaryEntries(ctx context.Context, language string, lemmas []string) ([]ReviewWord, error) {
 	if len(lemmas) == 0 {
 		return nil, nil
