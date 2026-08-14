@@ -1,11 +1,12 @@
 name: React CI/CD
 
+# Dormant: the AWS account is gone. Uncomment the push trigger once it is rebuilt.
 on:
-  push:
-    branches: ["main"]
-    paths:
-      - "frontend/**"
-      - ".github/workflows/react-cicd.yml"
+  # push:
+  #   branches: ["main"]
+  #   paths:
+  #     - "frontend/**"
+  #     - ".github/workflows/react-cicd.yml"
   workflow_dispatch:
 
 env:

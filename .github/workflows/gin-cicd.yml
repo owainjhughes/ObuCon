@@ -1,12 +1,13 @@
 name: Gin CI/CD
 
+# Dormant: the AWS account is gone. Uncomment the push trigger once it is rebuilt.
 on:
-  push:
-    branches: ["main"]
-    paths:
-      - "backend/**"
-      - "infra/docker/**"
-      - ".github/workflows/gin-cicd.yml"
+  # push:
+  #   branches: ["main"]
+  #   paths:
+  #     - "backend/**"
+  #     - "infra/docker/**"
+  #     - ".github/workflows/gin-cicd.yml"
   workflow_dispatch:
     inputs:
       deploy:

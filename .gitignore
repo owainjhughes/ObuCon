@@ -11,6 +11,7 @@ frontend/.env
 .vscode/
 .idea/
 /.design/
+/docs/superpowers/
 
 # OS
 .DS_Store
