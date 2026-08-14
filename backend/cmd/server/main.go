@@ -20,6 +20,7 @@ func registerProtectedRoutes(group *gin.RouterGroup, authHandler *auth.AuthHandl
 	group.POST("/analyze/file", analysisHandler.AnalyzeFile)
 	group.GET("/vocab", analysisHandler.ListVocabulary)
 	group.POST("/vocab/bulk", analysisHandler.BulkAddVocabulary)
+	group.POST("/vocab/import", analysisHandler.ImportVocabulary)
 	group.POST("/vocab/known", analysisHandler.AddKnownWord)
 	group.PUT("/vocab/known", analysisHandler.UpdateKnownWord)
 	group.DELETE("/vocab/known", analysisHandler.RemoveKnownWord)

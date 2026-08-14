@@ -11,14 +11,7 @@ import {
   type AnkiDeckPreview,
 } from "../api/ankiConnect"
 import { getCached, setCached } from "../api/cache"
-
-interface VocabEntry {
-  lemma: string
-  hiragana: string
-  grade_level?: number | null
-  meaning: string
-  kind?: string
-}
+import { fetchVocabulary, importVocabulary, type VocabularyEntry } from "../api/vocabulary"
 
 const jlptBadge: Record<number, string> = {
   1: 'bg-blue-700 text-white',
@@ -47,8 +40,8 @@ function ConjugationBadge() {
 }
 
 export default function Vocab() {
-  const cached = getCached<VocabEntry[]>("vocab")
-  const [vocab, setVocab] = useState<VocabEntry[]>(cached ?? [])
+  const cached = getCached<VocabularyEntry[]>("vocab")
+  const [vocab, setVocab] = useState<VocabularyEntry[]>(cached ?? [])
   const [isLoading, setIsLoading] = useState(!cached)
   const [error, setError] = useState<string | null>(null)
   const [search, setSearch] = useState("")
@@ -87,10 +80,7 @@ export default function Vocab() {
     setError(null)
 
     try {
-      const response = await apiClient.get("/vocab")
-      const raw: VocabEntry[] = response.data.vocab || []
-      const seen = new Set<string>()
-      const data = raw.filter((e) => (seen.has(e.lemma) ? false : (seen.add(e.lemma), true)))
+      const data = await fetchVocabulary()
       setCached("vocab", data)
       setVocab(data)
     } catch (err: unknown) {
@@ -159,7 +149,7 @@ export default function Vocab() {
     setJlptMessage(null)
   }
 
-  const startEditing = (entry: VocabEntry) => {
+  const startEditing = (entry: VocabularyEntry) => {
     setEditingLemma(entry.lemma)
     setEditMeaning(entry.meaning || "")
     setEditGradeLevel(String(entry.grade_level ?? 5))
@@ -196,7 +186,7 @@ export default function Vocab() {
     }
   }
 
-  const removeEntry = async (entry: VocabEntry) => {
+  const removeEntry = async (entry: VocabularyEntry) => {
     const confirmed = window.confirm(`Remove ${entry.lemma} from your vocabulary list?`)
     if (!confirmed) {
       return
@@ -298,32 +288,18 @@ export default function Vocab() {
         ankiMeaningField,
         ankiHiraganaField || undefined,
       )
-      const knownLemmas = new Set(vocab.map((v) => v.lemma))
-      const newEntries = entries.filter((e) => !knownLemmas.has(e.lemma))
-      const skippedAlreadyKnown = entries.length - newEntries.length
-
-      const results = await Promise.allSettled(
-        newEntries.map((e) =>
-          apiClient.post("/vocab/known", {
-            lemma: e.lemma,
-            language: "ja",
-            meaning: e.meaning || undefined,
-            hiragana: e.hiragana || undefined,
-          }),
-        ),
-      )
-      const added = results.filter((r) => r.status === "fulfilled").length
-      const failed = results.filter((r) => r.status === "rejected").length
+      if (entries.length === 0) {
+        setAnkiMessage({ text: "No mature cards with a word were found in this deck.", type: "success" })
+        return
+      }
+      const { added, updated, skipped } = await importVocabulary(entries)
       await loadVocab()
       setAnkiMessage({
-        text:
-          `Imported ${added} word(s) from Anki.` +
-          (skippedAlreadyKnown > 0 ? ` Skipped ${skippedAlreadyKnown} already known.` : "") +
-          (failed > 0 ? ` ${failed} failed.` : ""),
+        text: `Imported ${added} new word(s), updated ${updated}, and skipped ${skipped} unchanged word(s).`,
         type: "success",
       })
     } catch (err: unknown) {
-      setAnkiMessage({ text: err instanceof Error ? err.message : "Import failed", type: "error" })
+      setAnkiMessage({ text: getApiErrorMessage(err, "Import failed"), type: "error" })
     } finally {
       setImportingAnki(false)
     }

@@ -4,23 +4,11 @@ import Pagination from "../components/Pagination"
 import { apiClient } from "../api/client"
 import { getApiErrorMessage } from "../api/errors"
 import { getCached, setCached } from "../api/cache"
-
-interface DictionaryEntry {
-  kanji: string
-  hiragana: string
-  meaning: string
-  jlpt_level: number | null
-}
-
-interface VocabEntry {
-  lemma: string
-  hiragana: string
-  grade_level?: number | null
-  meaning: string
-  kind?: string
-}
+import { fetchDictionaryPage, type DictionaryPage } from "../api/dictionary"
+import { fetchVocabulary, type VocabularyEntry } from "../api/vocabulary"
 
 const PAGE_SIZE = 15
+const SEARCH_DEBOUNCE_MS = 250
 
 const jlptBadge: Record<number, string> = {
   1: 'bg-blue-700 text-white',
@@ -41,12 +29,12 @@ function JlptBadge({ level }: { level: number | null }) {
 }
 
 export default function Dictionary() {
-  const cached = getCached<DictionaryEntry[]>("dictionary")
-  const cachedVocab = getCached<VocabEntry[]>("vocab")
-  const [entries, setEntries] = useState<DictionaryEntry[]>(cached ?? [])
-  const [isLoading, setIsLoading] = useState(!cached)
+  const cachedVocab = getCached<VocabularyEntry[]>("vocab")
+  const [page, setPage] = useState<DictionaryPage | null>(null)
+  const [isLoading, setIsLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [search, setSearch] = useState("")
+  const [debouncedSearch, setDebouncedSearch] = useState("")
   const [jlptFilter, setJlptFilter] = useState<string>("all")
   const [currentPage, setCurrentPage] = useState(1)
   const [knownLemmas, setKnownLemmas] = useState<Set<string>>(
@@ -56,32 +44,46 @@ export default function Dictionary() {
   const [addError, setAddError] = useState<string | null>(null)
 
   useEffect(() => {
-    const load = async () => {
-      if (!getCached("dictionary")) setIsLoading(true)
-      setError(null)
-      try {
-        const [dictRes, vocabRes] = await Promise.allSettled([
-          apiClient.get("/dictionary", { params: { language: "ja" } }),
-          apiClient.get("/vocab"),
-        ])
-        if (dictRes.status === "fulfilled") {
-          const data: DictionaryEntry[] = dictRes.value.data.entries || []
-          setCached("dictionary", data)
-          setEntries(data)
-        } else {
-          setError(getApiErrorMessage(dictRes.reason, "Failed to load dictionary"))
-        }
-        if (vocabRes.status === "fulfilled") {
-          const vocab: VocabEntry[] = vocabRes.value.data.vocab || []
-          setCached("vocab", vocab)
-          setKnownLemmas(new Set(vocab.map((v) => v.lemma)))
-        }
-      } finally {
-        setIsLoading(false)
-      }
-    }
-    load()
+    // The known-word badges are cosmetic, so a failed lookup just leaves every row as "Add".
+    fetchVocabulary()
+      .then((vocab) => {
+        setCached("vocab", vocab)
+        setKnownLemmas(new Set(vocab.map((v) => v.lemma)))
+      })
+      .catch(() => undefined)
   }, [])
+
+  useEffect(() => {
+    const timeout = window.setTimeout(() => setDebouncedSearch(search), SEARCH_DEBOUNCE_MS)
+    return () => window.clearTimeout(timeout)
+  }, [search])
+
+  useEffect(() => {
+    let active = true
+    setIsLoading(true)
+    setError(null)
+    fetchDictionaryPage({
+      query: debouncedSearch,
+      jlpt: jlptFilter === "all" ? null : Number(jlptFilter),
+      page: currentPage,
+      pageSize: PAGE_SIZE,
+    })
+      .then((result) => {
+        if (active) setPage(result)
+      })
+      .catch((err: unknown) => {
+        if (active) setError(getApiErrorMessage(err, "Failed to load dictionary"))
+      })
+      .finally(() => {
+        if (active) setIsLoading(false)
+      })
+
+    return () => {
+      active = false
+    }
+  }, [currentPage, jlptFilter, debouncedSearch])
+
+  const entries = page?.entries ?? []
 
   const handleAddKnown = async (lemma: string) => {
     if (!lemma || addingByLemma[lemma] || knownLemmas.has(lemma)) return
@@ -94,12 +96,12 @@ export default function Dictionary() {
         next.add(lemma)
         return next
       })
-      const existing = getCached<VocabEntry[]>("vocab") ?? []
+      const existing = getCached<VocabularyEntry[]>("vocab") ?? []
       if (!existing.some((v) => v.lemma === lemma)) {
         const matchingDictEntry = entries.find(
           (e) => (e.kanji || e.hiragana) === lemma
         )
-        const newEntry: VocabEntry = {
+        const newEntry: VocabularyEntry = {
           lemma,
           hiragana: matchingDictEntry?.hiragana ?? "",
           grade_level: response?.data?.grade_level ?? matchingDictEntry?.jlpt_level ?? null,
@@ -113,24 +115,6 @@ export default function Dictionary() {
       setAddingByLemma((prev) => ({ ...prev, [lemma]: false }))
     }
   }
-
-  const filteredEntries = entries.filter((entry) => {
-    if (jlptFilter !== "all") {
-      const wantedLevel = Number(jlptFilter)
-      if (entry.jlpt_level !== wantedLevel) return false
-    }
-    if (!search) return true
-    const needle = search.toLowerCase()
-    return (
-      entry.kanji.includes(search) ||
-      entry.hiragana.includes(search) ||
-      (entry.meaning || "").toLowerCase().includes(needle)
-    )
-  })
-
-  const totalPages = Math.max(1, Math.ceil(filteredEntries.length / PAGE_SIZE))
-  const safePage = Math.min(currentPage, totalPages)
-  const paginated = filteredEntries.slice((safePage - 1) * PAGE_SIZE, safePage * PAGE_SIZE)
 
   return (
     <Layout>
@@ -188,7 +172,7 @@ export default function Dictionary() {
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-gray-100 text-sm text-gray-700">
-                  {paginated.map((entry, idx) => {
+                  {entries.map((entry, idx) => {
                     const word = entry.kanji || entry.hiragana
                     return (
                       <tr key={`${entry.kanji}-${entry.hiragana}-${idx}`} className="hover:bg-gray-50 transition-colors">
@@ -224,16 +208,16 @@ export default function Dictionary() {
                 </tbody>
               </table>
 
-              {filteredEntries.length === 0 && (
+              {entries.length === 0 && (
                 <div className="mt-6 rounded-lg border border-gray-200 bg-gray-50 px-4 py-3 text-sm text-gray-600">
                   No dictionary entries found.
                 </div>
               )}
 
               <Pagination
-                currentPage={safePage}
-                totalPages={totalPages}
-                totalCount={filteredEntries.length}
+                currentPage={currentPage}
+                totalPages={page?.totalPages ?? 1}
+                totalCount={page?.total ?? 0}
                 noun="words"
                 onChange={setCurrentPage}
               />

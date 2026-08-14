@@ -1,9 +1,11 @@
 package analysis
 
 import (
+	"errors"
 	"net/http"
-	"obucon/internal/helpers"
 	"strings"
+
+	"obucon/internal/helpers"
 
 	"github.com/gin-gonic/gin"
 )
@@ -45,6 +47,11 @@ type removeKnownWordRequest struct {
 type bulkVocabRequest struct {
 	JLPTLevel string `json:"jlpt_level" binding:"required,oneof=N5 N4 N3 N2 N1"`
 	Language  string `json:"language" binding:"required,len=2"`
+}
+
+type importVocabularyRequest struct {
+	Language string                  `json:"language" binding:"required,len=2"`
+	Entries  []VocabularyImportEntry `json:"entries" binding:"required,min=1,max=500,dive"`
 }
 
 func (h *AnalysisHandler) AnalyzeText(c *gin.Context) {
@@ -155,6 +162,41 @@ func (h *AnalysisHandler) BulkAddVocabulary(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{"added": count})
 }
 
+func (h *AnalysisHandler) ImportVocabulary(c *gin.Context) {
+	userID, ok := helpers.UserIDFromContext(c)
+	if !ok {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "unauthorized"})
+		return
+	}
+
+	c.Request.Body = http.MaxBytesReader(c.Writer, c.Request.Body, maxVocabularyImportBodyBytes)
+	var req importVocabularyRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		var maxBytesErr *http.MaxBytesError
+		if errors.As(err, &maxBytesErr) {
+			c.JSON(http.StatusRequestEntityTooLarge, gin.H{"error": "request too large"})
+			return
+		}
+		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid request"})
+		return
+	}
+
+	entries, err := normalizeVocabularyImportEntries(req.Entries)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	result, err := h.analysisService.ImportVocabulary(c.Request.Context(), userID, req.Language, entries)
+	if err != nil {
+		_ = c.Error(err)
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to import vocabulary"})
+		return
+	}
+
+	c.JSON(http.StatusOK, result)
+}
+
 func (h *AnalysisHandler) AddKnownWord(c *gin.Context) {
 	userID, ok := helpers.UserIDFromContext(c)
 	if !ok {
@@ -229,13 +271,20 @@ func (h *AnalysisHandler) ListDictionary(c *gin.Context) {
 		return
 	}
 
-	entries, err := h.analysisService.ListDictionary(c.Request.Context(), language)
+	query, err := parseDictionaryQuery(c.Request.URL.Query())
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
 	}
 
-	c.JSON(http.StatusOK, gin.H{"entries": entries})
+	page, err := h.analysisService.SearchDictionary(c.Request.Context(), language, query)
+	if err != nil {
+		_ = c.Error(err)
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to load dictionary"})
+		return
+	}
+
+	c.JSON(http.StatusOK, page)
 }
 
 func (h *AnalysisHandler) GetReviewWords(c *gin.Context) {
